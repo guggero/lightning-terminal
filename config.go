@@ -18,6 +18,7 @@ import (
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightninglabs/loop/loopd"
+	"github.com/lightninglabs/pool"
 	"github.com/lightningnetwork/lnd"
 	"github.com/lightningnetwork/lnd/build"
 	"github.com/lightningnetwork/lnd/cert"
@@ -57,6 +58,7 @@ var (
 	lndDefaultConfig     = lnd.DefaultConfig()
 	faradayDefaultConfig = faraday.DefaultConfig()
 	loopDefaultConfig    = loopd.DefaultConfig()
+	poolDefaultConfig    = pool.DefaultConfig()
 
 	// defaultLitDir is the default directory where LiT tries to find its
 	// configuration file and store its data (in remote lnd node). This is a
@@ -108,6 +110,7 @@ type Config struct {
 
 	Faraday *faraday.Config `group:"Faraday options" namespace:"faraday"`
 	Loop    *loopd.Config   `group:"Loop options" namespace:"loop"`
+	Pool    *pool.Config    `group:"pool" namespace:"pool"`
 
 	Lnd *lnd.Config `group:"Integrated lnd (use when lnd-mode=integrated)" namespace:"lnd"`
 
@@ -210,6 +213,7 @@ func defaultConfig() *Config {
 		Faraday:           &faradayDefaultConfig,
 		faradayRpcConfig:  &frdrpc.Config{},
 		Loop:              &loopDefaultConfig,
+		Pool:              &poolDefaultConfig,
 	}
 }
 
@@ -291,6 +295,11 @@ func loadAndValidateConfig() (*Config, error) {
 		return nil, err
 	}
 
+	cfg.Pool.Network = cfg.network
+	if err := pool.Validate(cfg.Pool); err != nil {
+		return nil, err
+	}
+	
 	cfg.Faraday.Network = cfg.network
 	if err := faraday.ValidateConfig(cfg.Faraday); err != nil {
 		return nil, err
