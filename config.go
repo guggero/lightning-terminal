@@ -13,6 +13,7 @@ import (
 
 	"github.com/jessevdk/go-flags"
 	"github.com/lightninglabs/faraday"
+	"github.com/lightninglabs/llm"
 	"github.com/lightninglabs/loop/loopd"
 	"github.com/lightningnetwork/lnd"
 	"github.com/lightningnetwork/lnd/build"
@@ -32,6 +33,7 @@ var (
 	lndDefaultConfig     = lnd.DefaultConfig()
 	faradayDefaultConfig = faraday.DefaultConfig()
 	loopDefaultConfig    = loopd.DefaultConfig()
+	llmDefaultConfig     = llm.DefaultConfig()
 
 	defaultLetsEncryptDir = "letsencrypt"
 )
@@ -52,15 +54,17 @@ type Config struct {
 	Lnd     *lnd.Config     `group:"lnd" namespace:"lnd"`
 	Faraday *faraday.Config `group:"faraday" namespace:"faraday"`
 	Loop    *loopd.Config   `group:"loop" namespace:"loop"`
+	Llm     *llm.Config     `group:"llm" namespace:"llm"`
 }
 
 // defaultConfig returns a configuration struct with all default values set.
 func defaultConfig() *Config {
 	return &Config{
-		HTTPSListen:    defaultHTTPSListen,
-		Lnd:            &lndDefaultConfig,
-		Faraday:        &faradayDefaultConfig,
-		Loop:           &loopDefaultConfig,
+		HTTPSListen: defaultHTTPSListen,
+		Lnd:         &lndDefaultConfig,
+		Faraday:     &faradayDefaultConfig,
+		Loop:        &loopDefaultConfig,
+		Llm:         &llmDefaultConfig,
 	}
 }
 

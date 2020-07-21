@@ -8,12 +8,16 @@ import (
 	"github.com/lightninglabs/faraday/frdrpc"
 	"github.com/lightninglabs/faraday/recommend"
 	"github.com/lightninglabs/faraday/revenue"
+	"github.com/lightninglabs/llm/account"
+	"github.com/lightninglabs/llm/auctioneer"
+	"github.com/lightninglabs/llm/order"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightninglabs/loop"
 	"github.com/lightninglabs/loop/loopdb"
 	"github.com/lightninglabs/loop/lsat"
 	"github.com/lightningnetwork/lnd"
 	"github.com/lightningnetwork/lnd/build"
+	"github.com/lightningnetwork/lnd/signal"
 	"google.golang.org/grpc/grpclog"
 )
 
@@ -67,6 +71,12 @@ func SetupLoggers(root *build.RotatingLogWriter) {
 	lnd.AddSubLogger(root, "LNDC", lndclient.UseLogger)
 	lnd.AddSubLogger(root, "STORE", loopdb.UseLogger)
 	lnd.AddSubLogger(root, lsat.Subsystem, lsat.UseLogger)
+
+	// Add llm loggers to lnd's root logger.
+	lnd.AddSubLogger(root, auctioneer.Subsystem, auctioneer.UseLogger)
+	lnd.AddSubLogger(root, order.Subsystem, order.UseLogger)
+	lnd.AddSubLogger(root, "SGNL", signal.UseLogger)
+	lnd.AddSubLogger(root, account.Subsystem, account.UseLogger)
 }
 
 // NewGrpcLogLogger creates a new grpclog compatible logger and attaches it as

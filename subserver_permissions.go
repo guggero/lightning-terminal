@@ -74,17 +74,73 @@ var (
 			Action: "read",
 		}},
 	}
+
+	// llmPermissions is a map of all llm RPC methods and their required
+	// macaroon permissions.
+	//
+	// TODO(guggero): Move to llm repo once macaroons are enabled there
+	// and use more application specific permissions.
+	llmPermissions = map[string][]bakery.Op{
+		"/clmrpc.Trader/InitAccount": {{
+			Entity: "onchain",
+			Action: "write",
+		}},
+		"/clmrpc.Trader/ListAccounts": {{
+			Entity: "onchain",
+			Action: "read",
+		}},
+		"/clmrpc.Trader/CloseAccount": {{
+			Entity: "onchain",
+			Action: "write",
+		}},
+		"/clmrpc.Trader/WithdrawAccount": {{
+			Entity: "onchain",
+			Action: "write",
+		}},
+		"/clmrpc.Trader/DepositAccount": {{
+			Entity: "onchain",
+			Action: "write",
+		}},
+		"/clmrpc.Trader/RecoverAccounts": {{
+			Entity: "onchain",
+			Action: "write",
+		}},
+		"/clmrpc.Trader/SubmitOrder": {{
+			Entity: "offchain",
+			Action: "read",
+		}},
+		"/clmrpc.Trader/ListOrders": {{
+			Entity: "offchain",
+			Action: "read",
+		}},
+		"/clmrpc.Trader/CancelOrder": {{
+			Entity: "offchain",
+			Action: "read",
+		}},
+		"/clmrpc.Trader/AuctionFee": {{
+			Entity: "offchain",
+			Action: "read",
+		}},
+		"/clmrpc.Trader/BatchSnapshot": {{
+			Entity: "offchain",
+			Action: "read",
+		}},
+	}
 )
 
 // getSubserverPermissions returns a merged map of all subserver macaroon
 // permissions.
 func getSubserverPermissions() map[string][]bakery.Op {
-	mapSize := len(faradayPermissions) + len(loopPermissions)
+	mapSize := len(faradayPermissions) + len(loopPermissions) +
+		len(llmPermissions)
 	result := make(map[string][]bakery.Op, mapSize)
 	for key, value := range faradayPermissions {
 		result[key] = value
 	}
 	for key, value := range loopPermissions {
+		result[key] = value
+	}
+	for key, value := range llmPermissions {
 		result[key] = value
 	}
 	return result

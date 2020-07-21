@@ -20,6 +20,8 @@ import (
 	"github.com/improbable-eng/grpc-web/go/grpcweb"
 	"github.com/jessevdk/go-flags"
 	"github.com/lightninglabs/faraday/frdrpc"
+	"github.com/lightninglabs/llm"
+	"github.com/lightninglabs/llm/clmrpc"
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightninglabs/loop/loopd"
 	"github.com/lightninglabs/loop/looprpc"
@@ -79,6 +81,9 @@ type LightningTerminal struct {
 
 	loopServer  *loopd.Daemon
 	loopStarted bool
+
+	llmServer  *llm.Server
+	llmStarted bool
 
 	grpcWebProxy *grpc.Server
 	httpServer   *http.Server
@@ -174,11 +179,13 @@ func (g *LightningTerminal) Run() error {
 		return err
 	}
 	g.cfg.Loop.Network = network
+	g.cfg.Llm.Network = network
 
 	// Create the instances of our subservers now so we can hook them up to
 	// lnd once it's fully started.
 	g.faradayServer = frdrpc.NewRPCServer(&frdrpc.Config{})
 	g.loopServer = loopd.New(g.cfg.Loop, nil)
+	g.llmServer = llm.NewServer(g.cfg.Llm)
 
 	// Hook interceptor for os signals.
 	signal.Intercept()
@@ -337,6 +344,12 @@ func (g *LightningTerminal) startSubservers(network string) error {
 	}
 	g.loopStarted = true
 
+	err = g.llmServer.StartAsSubserver(basicClient, g.lndClient)
+	if err != nil {
+		return err
+	}
+	g.llmStarted = true
+
 	return nil
 }
 
@@ -348,6 +361,7 @@ func (g *LightningTerminal) RegisterGrpcSubserver(grpcServer *grpc.Server) error
 	g.lndGrpcServer = grpcServer
 	frdrpc.RegisterFaradayServerServer(grpcServer, g.faradayServer)
 	looprpc.RegisterSwapClientServer(grpcServer, g.loopServer)
+	clmrpc.RegisterTraderServer(grpcServer, g.llmServer)
 	return nil
 }
 
@@ -366,7 +380,14 @@ func (g *LightningTerminal) RegisterRestSubserver(ctx context.Context,
 		return err
 	}
 
-	return looprpc.RegisterSwapClientHandlerFromEndpoint(
+	err = looprpc.RegisterSwapClientHandlerFromEndpoint(
+		ctx, mux, endpoint, dialOpts,
+	)
+	if err != nil {
+		return err
+	}
+
+	return clmrpc.RegisterTraderHandlerFromEndpoint(
 		ctx, mux, endpoint, dialOpts,
 	)
 }
