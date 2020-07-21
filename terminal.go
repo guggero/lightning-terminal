@@ -19,6 +19,8 @@ import (
 	"github.com/lightninglabs/lndclient"
 	"github.com/lightninglabs/loop/loopd"
 	"github.com/lightninglabs/loop/looprpc"
+	"github.com/lightninglabs/pool"
+	"github.com/lightninglabs/pool/poolrpc"
 	"github.com/lightningnetwork/lnd"
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntest/wait"
@@ -61,6 +63,9 @@ type LightningTerminal struct {
 	loopServer  *loopd.Daemon
 	loopStarted bool
 
+	poolServer  *pool.Server
+	poolStarted bool
+
 	rpcProxy   *rpcProxy
 	httpServer *http.Server
 }
@@ -85,6 +90,7 @@ func (g *LightningTerminal) Run() error {
 	// lnd once it's fully started.
 	g.faradayServer = frdrpc.NewRPCServer(g.cfg.faradayRpcConfig)
 	g.loopServer = loopd.New(g.cfg.Loop, nil)
+	g.poolServer = pool.NewServer(g.cfg.Pool)
 	g.rpcProxy = newRpcProxy(g.cfg, g, getAllPermissions())
 
 	// Hook interceptor for os signals.
@@ -277,6 +283,12 @@ func (g *LightningTerminal) startSubservers() error {
 	}
 	g.loopStarted = true
 
+	err = g.poolServer.StartAsSubserver(basicClient, g.lndClient)
+	if err != nil {
+		return err
+	}
+	g.poolStarted = true
+
 	return nil
 }
 
@@ -288,6 +300,7 @@ func (g *LightningTerminal) RegisterGrpcSubserver(grpcServer *grpc.Server) error
 	g.lndGrpcServer = grpcServer
 	frdrpc.RegisterFaradayServerServer(grpcServer, g.faradayServer)
 	looprpc.RegisterSwapClientServer(grpcServer, g.loopServer)
+	poolrpc.RegisterTraderServer(grpcServer, g.poolServer)
 	return nil
 }
 
@@ -306,7 +319,14 @@ func (g *LightningTerminal) RegisterRestSubserver(ctx context.Context,
 		return err
 	}
 
-	return looprpc.RegisterSwapClientHandlerFromEndpoint(
+	err = looprpc.RegisterSwapClientHandlerFromEndpoint(
+		ctx, mux, endpoint, dialOpts,
+	)
+	if err != nil {
+		return err
+	}
+
+	return poolrpc.RegisterTraderHandlerFromEndpoint(
 		ctx, mux, endpoint, dialOpts,
 	)
 }
@@ -329,6 +349,11 @@ func (g *LightningTerminal) ValidateMacaroon(ctx context.Context,
 
 	case isFaradayURI(fullMethod):
 		return g.faradayServer.ValidateMacaroon(
+			ctx, requiredPermissions, fullMethod,
+		)
+
+	case isPoolURI(fullMethod):
+		return g.poolServer.ValidateMacaroon(
 			ctx, requiredPermissions, fullMethod,
 		)
 	}
@@ -426,7 +451,7 @@ func (g *LightningTerminal) shutdown() error {
 //    | director                 |    | local subserver    |
 //    +---+----------------------+    |  - loop            |
 //        |                           |  - faraday         |
-//        v authenticated call        |                    |
+//        v authenticated call        |  - pool            |
 //    +---+----------------------+    +--------------------+
 //    | lnd (remote or local)    |
 //    +--------------------------+
