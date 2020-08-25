@@ -10,6 +10,8 @@ const appPath = join(__dirname, '..');
 const filePatches = {
   lnd: 'lnrpc: {}',
   loop: 'looprpc: {}',
+  trader: 'clmrpc: {}',
+  auctioneer: 'clmrpc: {}',
   'google/api/annotations': 'google: { api: {} }',
   'google/api/http': 'google: { api: {} }',
 };
