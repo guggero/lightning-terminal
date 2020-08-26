@@ -1,5 +1,6 @@
 import * as LLM from 'types/generated/trader_pb';
 import { Trader } from 'types/generated/trader_pb_service';
+import { b64 } from 'util/strings';
 import BaseApi from './base';
 import GrpcClient from './grpc';
 
@@ -31,6 +32,24 @@ class LlmApi extends BaseApi<LlmEvents> {
     req.setRelativeHeight(expiryBlocks);
     req.setConfTarget(confTarget);
     const res = await this._grpc.request(Trader.InitAccount, req, this._meta);
+    return res.toObject();
+  }
+
+  /**
+   * call the LLM `CloseAccount` RPC and return the response
+   */
+  async closeAccount(
+    traderKey: string,
+    feeRateSatPerKw = 253,
+  ): Promise<LLM.CloseAccountResponse.AsObject> {
+    const req = new LLM.CloseAccountRequest();
+    req.setTraderKey(b64(traderKey));
+
+    const output = new LLM.OutputWithFee();
+    output.setFeeRateSatPerKw(feeRateSatPerKw);
+    req.setOutputWithFee(output);
+
+    const res = await this._grpc.request(Trader.CloseAccount, req, this._meta);
     return res.toObject();
   }
 

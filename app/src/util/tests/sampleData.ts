@@ -295,6 +295,10 @@ export const llmInitAccount: LLM.Account.AsObject = {
   value: 30000000,
 };
 
+export const llmCloseAccount: LLM.CloseAccountResponse.AsObject = {
+  closeTxid: '+BQm/hnM0SleT2NxS7bdw0JNDuvIMhL4qxLUkdbCJdo=',
+};
+
 export const llmListAccounts: LLM.ListAccountsResponse.AsObject = {
   accountsList: [
     llmInitAccount,
@@ -360,6 +364,7 @@ export const sampleApiResponses: Record<string, any> = {
   'looprpc.SwapClient.LoopOut': loopSwapResponse,
   'clmrpc.Trader.ListAccounts': llmListAccounts,
   'clmrpc.Trader.InitAccount': llmInitAccount,
+  'clmrpc.Trader.CloseAccount': llmCloseAccount,
   'clmrpc.Trader.DepositAccount': llmDepositAccount,
   'clmrpc.Trader.WithdrawAccount': llmWithdrawAccount,
 };

@@ -3,6 +3,7 @@ import { grpc } from '@improbable-eng/grpc-web';
 import { waitFor } from '@testing-library/react';
 import Big from 'big.js';
 import {
+  llmCloseAccount,
   llmDepositAccount,
   llmListAccounts,
   llmWithdrawAccount,
@@ -73,6 +74,25 @@ describe('AccountStore', () => {
     });
     expect(rootStore.uiStore.alerts.size).toBe(0);
     await store.createAccount(3000000, 4032);
+    await waitFor(() => {
+      expect(rootStore.uiStore.alerts.size).toBe(1);
+      expect(values(rootStore.uiStore.alerts)[0].message).toBe('test-err');
+    });
+  });
+
+  it('should close an Account', async () => {
+    await store.fetchAccounts();
+    const txid = await store.closeAccount();
+    expect(txid).toEqual(llmCloseAccount.closeTxid);
+  });
+
+  it('should handle errors closing an Account', async () => {
+    await store.fetchAccounts();
+    grpcMock.unary.mockImplementationOnce(() => {
+      throw new Error('test-err');
+    });
+    expect(rootStore.uiStore.alerts.size).toBe(0);
+    await store.closeAccount();
     await waitFor(() => {
       expect(rootStore.uiStore.alerts.size).toBe(1);
       expect(values(rootStore.uiStore.alerts)[0].message).toBe('test-err');
