@@ -325,12 +325,21 @@ export const llmListAccounts: LLM.ListAccountsResponse.AsObject = {
   ],
 };
 
-export const llmDepositAccount: LLM.DepositAccountResponse.AsObject = {
+export const llmDepositAccount: Required<LLM.DepositAccountResponse.AsObject> = {
   depositTxid: '+BQm/hnM0SleT2NxS7bdw0JNDuvIMhL4qxLUkdbCJdo=',
   account: {
     ...llmInitAccount,
     state: LLM.AccountState.PENDING_UPDATE,
     value: llmInitAccount.value + 1,
+  },
+};
+
+export const llmWithdrawAccount: Required<LLM.WithdrawAccountResponse.AsObject> = {
+  withdrawTxid: '+BQm/hnM0SleT2NxS7bdw0JNDuvIMhL4qxLUkdbCJdo=',
+  account: {
+    ...llmInitAccount,
+    state: LLM.AccountState.PENDING_UPDATE,
+    value: llmInitAccount.value - 1,
   },
 };
 
@@ -352,4 +361,5 @@ export const sampleApiResponses: Record<string, any> = {
   'clmrpc.Trader.ListAccounts': llmListAccounts,
   'clmrpc.Trader.InitAccount': llmInitAccount,
   'clmrpc.Trader.DepositAccount': llmDepositAccount,
+  'clmrpc.Trader.WithdrawAccount': llmWithdrawAccount,
 };

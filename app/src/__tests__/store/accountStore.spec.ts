@@ -2,7 +2,11 @@ import { values } from 'mobx';
 import { grpc } from '@improbable-eng/grpc-web';
 import { waitFor } from '@testing-library/react';
 import Big from 'big.js';
-import { llmDepositAccount, llmListAccounts } from 'util/tests/sampleData';
+import {
+  llmDepositAccount,
+  llmListAccounts,
+  llmWithdrawAccount,
+} from 'util/tests/sampleData';
 import { AccountStore, createStore, Store } from 'store';
 
 const grpcMock = grpc as jest.Mocked<typeof grpc>;
@@ -89,6 +93,26 @@ describe('AccountStore', () => {
     });
     expect(rootStore.uiStore.alerts.size).toBe(0);
     await store.deposit(1);
+    await waitFor(() => {
+      expect(rootStore.uiStore.alerts.size).toBe(1);
+      expect(values(rootStore.uiStore.alerts)[0].message).toBe('test-err');
+    });
+  });
+
+  it('should withdraw funds from an account', async () => {
+    await store.fetchAccounts();
+    const txid = await store.withdraw(1);
+    expect(+store.activeAccount.totalBalance).toBe(llmWithdrawAccount.account?.value);
+    expect(txid).toEqual(llmWithdrawAccount.withdrawTxid);
+  });
+
+  it('should handle errors withdrawing funds', async () => {
+    await store.fetchAccounts();
+    grpcMock.unary.mockImplementationOnce(() => {
+      throw new Error('test-err');
+    });
+    expect(rootStore.uiStore.alerts.size).toBe(0);
+    await store.withdraw(1);
     await waitFor(() => {
       expect(rootStore.uiStore.alerts.size).toBe(1);
       expect(values(rootStore.uiStore.alerts)[0].message).toBe('test-err');
