@@ -1,3 +1,5 @@
+import * as LLM from 'types/generated/trader_pb';
+import { Trader } from 'types/generated/trader_pb_service';
 import BaseApi from './base';
 import GrpcClient from './grpc';
 
@@ -14,6 +16,31 @@ class LlmApi extends BaseApi<LlmEvents> {
   constructor(grpc: GrpcClient) {
     super();
     this._grpc = grpc;
+  }
+
+  /**
+   * call the LLM `InitAccount` RPC and return the response
+   */
+  async initAccount(
+    amount: number,
+    expiryBlocks: number,
+    confTarget = 6,
+  ): Promise<LLM.Account.AsObject> {
+    const req = new LLM.InitAccountRequest();
+    req.setAccountValue(amount);
+    req.setRelativeHeight(expiryBlocks);
+    req.setConfTarget(confTarget);
+    const res = await this._grpc.request(Trader.InitAccount, req, this._meta);
+    return res.toObject();
+  }
+
+  /**
+   * call the LLM `ListAccounts` RPC and return the response
+   */
+  async listAccounts(): Promise<LLM.ListAccountsResponse.AsObject> {
+    const req = new LLM.ListAccountsRequest();
+    const res = await this._grpc.request(Trader.ListAccounts, req, this._meta);
+    return res.toObject();
   }
 }
 
