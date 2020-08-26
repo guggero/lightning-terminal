@@ -282,8 +282,22 @@ export const loopSwapResponse: LOOP.SwapResponse.AsObject = {
 // LLM API Responses
 //
 
+export const llmInitAccount: LLM.Account.AsObject = {
+  availableBalance: 0,
+  closeTxid: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+  expirationHeight: 4334,
+  outpoint: {
+    outputIndex: 0,
+    txid: 'fY/L3gq49iu3bykuK32Ar95ewk3a2wUkFSOGfmGFncc=',
+  },
+  state: LLM.AccountState.OPEN,
+  traderKey: 'Ap+9XjK2X8EOrmAJvcvWS1B9jt3xLYka0S7aMru0Bude',
+  value: 30000000,
+};
+
 export const llmListAccounts: LLM.ListAccountsResponse.AsObject = {
   accountsList: [
+    llmInitAccount,
     {
       availableBalance: 15000000,
       closeTxid: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
@@ -311,17 +325,13 @@ export const llmListAccounts: LLM.ListAccountsResponse.AsObject = {
   ],
 };
 
-export const llmInitAccount: LLM.Account.AsObject = {
-  availableBalance: 0,
-  closeTxid: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
-  expirationHeight: 4334,
-  outpoint: {
-    outputIndex: 0,
-    txid: 'fY/L3gq49iu3bykuK32Ar95ewk3a2wUkFSOGfmGFncc=',
+export const llmDepositAccount: LLM.DepositAccountResponse.AsObject = {
+  depositTxid: '+BQm/hnM0SleT2NxS7bdw0JNDuvIMhL4qxLUkdbCJdo=',
+  account: {
+    ...llmInitAccount,
+    state: LLM.AccountState.PENDING_UPDATE,
+    value: llmInitAccount.value + 1,
   },
-  state: LLM.AccountState.OPEN,
-  traderKey: 'Ap+9XjK2X8EOrmAJvcvWS1B9jt3xLYka0S7aMru0Bude',
-  value: 3000000,
 };
 
 // collection of sample API responses
@@ -341,4 +351,5 @@ export const sampleApiResponses: Record<string, any> = {
   'looprpc.SwapClient.LoopOut': loopSwapResponse,
   'clmrpc.Trader.ListAccounts': llmListAccounts,
   'clmrpc.Trader.InitAccount': llmInitAccount,
+  'clmrpc.Trader.DepositAccount': llmDepositAccount,
 };

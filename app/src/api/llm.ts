@@ -42,6 +42,22 @@ class LlmApi extends BaseApi<LlmEvents> {
     const res = await this._grpc.request(Trader.ListAccounts, req, this._meta);
     return res.toObject();
   }
+
+  /**
+   * call the LLM `DepositAccount` RPC and return the response
+   */
+  async deposit(
+    traderKey: string,
+    amount: number,
+    feeRateSatPerKw = 253,
+  ): Promise<LLM.DepositAccountResponse.AsObject> {
+    const req = new LLM.DepositAccountRequest();
+    req.setTraderKey(Buffer.from(traderKey, 'hex').toString('base64'));
+    req.setAmountSat(amount);
+    req.setFeeRateSatPerKw(feeRateSatPerKw);
+    const res = await this._grpc.request(Trader.DepositAccount, req, this._meta);
+    return res.toObject();
+  }
 }
 
 export default LlmApi;
