@@ -1,6 +1,6 @@
 import {
-  action,
-  computed,
+  keys,
+  makeAutoObservable,
   observable,
   ObservableMap,
   runInAction,
@@ -16,16 +16,17 @@ export default class AccountStore {
   private _store: Store;
 
   /** the collection of accounts */
-  @observable accounts: ObservableMap<string, Account> = observable.map();
+  accounts: ObservableMap<string, Account> = observable.map();
   /** the currently active account */
-  @observable activeTraderKey?: string;
+  activeTraderKey?: string;
 
   constructor(store: Store) {
+    makeAutoObservable(this, {}, { deep: false, autoBind: true });
+
     this._store = store;
   }
 
   /** returns the active account model */
-  @computed
   get activeAccount() {
     if (!this.activeTraderKey) {
       throw new Error('Select an account to manage');
@@ -40,13 +41,14 @@ export default class AccountStore {
   }
 
   /** an array of accounts with opened first */
-  @computed
   get sortedAccounts() {
     const accts = values(this.accounts).slice();
     // sort opened accounts by the account balance
     const open = accts
       .filter(a => a.state === AccountState.OPEN)
-      .sort((a, b) => +b.totalBalance.minus(a.totalBalance));
+      .sort((a, b) => {
+        return +b.totalBalance.minus(a.totalBalance);
+      });
     // sort unopened accounts by the expiration height descending
     const other = accts
       .filter(a => a.state !== AccountState.OPEN)
@@ -56,7 +58,6 @@ export default class AccountStore {
   }
 
   /** switch to a different account */
-  @action.bound
   setActiveTraderKey(traderKey: string) {
     this.activeTraderKey = traderKey;
     this._store.log.info(
@@ -70,7 +71,6 @@ export default class AccountStore {
    * @param amount the amount (sats) to fund the account with
    * @param expiryBlocks the number of blocks from now to expire the account
    */
-  @action.bound
   async createAccount(amount: number, expiryBlocks: number, confTarget?: number) {
     this._store.log.info(`creating new account with ${amount}sats`);
     try {
@@ -79,7 +79,7 @@ export default class AccountStore {
         expiryBlocks,
         confTarget,
       );
-      runInAction('createAccountContinuation', () => {
+      runInAction(() => {
         const traderKey = hex(acct.traderKey);
         this.accounts.set(traderKey, new Account(acct));
         this.setActiveTraderKey(traderKey);
@@ -93,7 +93,6 @@ export default class AccountStore {
   /**
    * Closes an account via the pool API
    */
-  @action.bound
   async closeAccount(feeRate?: number) {
     try {
       const acct = this.activeAccount;
@@ -111,13 +110,12 @@ export default class AccountStore {
    * queries the pool api to fetch the list of accounts and stores them
    * in the state
    */
-  @action.bound
   async fetchAccounts() {
     this._store.log.info('fetching accounts');
 
     try {
       const { accountsList } = await this._store.api.pool.listAccounts();
-      runInAction('fetchAccountsContinuation', () => {
+      runInAction(() => {
         accountsList.forEach(poolAcct => {
           // update existing accounts or create new ones in state. using this
           // approach instead of overwriting the array will cause fewer state
@@ -132,7 +130,7 @@ export default class AccountStore {
         });
         // remove any accounts in state that are not in the API response
         const serverIds = accountsList.map(a => hex(a.traderKey));
-        const localIds = Object.keys(this.accounts);
+        const localIds = keys(this.accounts);
         localIds
           .filter(id => !serverIds.includes(id))
           .forEach(id => this.accounts.delete(id));
@@ -140,7 +138,9 @@ export default class AccountStore {
         // pre-select the open account with the highest balance
         const account = values(this.accounts)
           .slice()
-          .sort((a, b) => +b.totalBalance.sub(a.totalBalance))
+          .sort((a, b) => {
+            return +b.totalBalance.sub(a.totalBalance);
+          })
           .find(a => a.stateLabel === 'Open');
         if (account) {
           this.setActiveTraderKey(account.traderKey);
@@ -156,14 +156,13 @@ export default class AccountStore {
   /**
    * submits a deposit of the specified amount to the pool api
    */
-  @action.bound
   async deposit(amount: number, feeRate?: number) {
     try {
       const acct = this.activeAccount;
       this._store.log.info(`depositing ${amount}sats into account ${acct.traderKey}`);
 
       const res = await this._store.api.pool.deposit(acct.traderKey, amount, feeRate);
-      runInAction('depositContinuation', () => {
+      runInAction(() => {
         // the account should always be defined but if not, fetch all accounts as a fallback
         if (res.account) {
           acct.update(res.account);
@@ -181,14 +180,13 @@ export default class AccountStore {
   /**
    * submits a withdraw of the specified amount to the pool api
    */
-  @action.bound
   async withdraw(amount: number, feeRate?: number) {
     try {
       const acct = this.activeAccount;
       this._store.log.info(`withdrawing ${amount}sats into account ${acct.traderKey}`);
 
       const res = await this._store.api.pool.withdraw(acct.traderKey, amount, feeRate);
-      runInAction('withdrawContinuation', () => {
+      runInAction(() => {
         if (res.account) {
           acct.update(res.account);
         } else {

@@ -1,7 +1,6 @@
-import { action, autorun, observable, runInAction } from 'mobx';
-import { RouterStore, syncHistoryWithStore } from 'mobx-react-router';
+import { autorun, makeAutoObservable, runInAction } from 'mobx';
 import { IS_DEV, IS_TEST } from 'config';
-import { createBrowserHistory } from 'history';
+import { createBrowserHistory, History } from 'history';
 import AppStorage from 'util/appStorage';
 import CsvExporter from 'util/csv';
 import { actionLog, Logger } from 'util/log';
@@ -15,6 +14,7 @@ import {
   NodeStore,
   OrderFormStore,
   OrderStore,
+  RouterStore,
   SettingsStore,
   SwapStore,
   UiStore,
@@ -40,7 +40,7 @@ export class Store {
   orderFormStore = new OrderFormStore(this);
 
   /** the store which synchronizes with the browser history */
-  router = new RouterStore();
+  router: RouterStore;
 
   /** the backend api services to be used by child stores */
   api: {
@@ -60,20 +60,24 @@ export class Store {
 
   // a flag to indicate when the store has completed all of its
   // API requests requested during initialization
-  @observable initialized = false;
+  initialized = false;
   // a flag to indicate when the websocket streams are connected
-  @observable streamsConnected = false;
+  streamsConnected = false;
 
   constructor(
     lnd: LndApi,
     loop: LoopApi,
     pool: PoolApi,
     storage: AppStorage,
+    history: History,
     csv: CsvExporter,
     log: Logger,
   ) {
+    makeAutoObservable(this, {}, { deep: false, autoBind: true });
+
     this.api = { lnd, loop, pool };
     this.storage = storage;
+    this.router = new RouterStore(history);
     this.csv = csv;
     this.log = log;
   }
@@ -81,12 +85,11 @@ export class Store {
   /**
    * load initial data to populate the store
    */
-  @action.bound
   async init() {
     this.settingsStore.init();
     this.swapStore.init();
     await this.authStore.init();
-    runInAction('init', () => {
+    runInAction(() => {
       this.initialized = true;
     });
 
@@ -100,7 +103,9 @@ export class Store {
           // only do this if the auth page is currently being viewed, otherwise
           // stay on the current page (ex: history, settings)
           if (document.location.pathname === '/') {
-            this.uiStore.goToLoop();
+            runInAction(() => {
+              this.uiStore.goToLoop();
+            });
           }
           // also fetch all the data we need
           this.fetchAllData();
@@ -121,7 +126,6 @@ export class Store {
   /**
    * makes the initial API calls to fetch the data we need to display in the app
    */
-  @action.bound
   async fetchAllData() {
     await this.nodeStore.fetchInfo();
     await this.channelStore.fetchChannels();
@@ -130,7 +134,6 @@ export class Store {
   }
 
   /** connects to the LND and Loop websocket streams if not already connected */
-  @action.bound
   connectToStreams() {
     if (this.streamsConnected) return;
 
@@ -143,7 +146,6 @@ export class Store {
   /**
    * subscribes to the LND and Loop streaming endpoints
    */
-  @action.bound
   subscribeToStreams() {
     const { lnd, loop } = this.api;
     lnd.on('transaction', this.nodeStore.onTransaction);
@@ -154,7 +156,6 @@ export class Store {
   /**
    * unsubscribes from the LND and Loop streaming endpoints
    */
-  @action.bound
   unsubscribeFromStreams() {
     const { lnd, loop } = this.api;
     lnd.off('transaction', this.nodeStore.onTransaction);
@@ -175,11 +176,9 @@ export const createStore = (grpcClient?: GrpcClient, appStorage?: AppStorage) =>
   const loopApi = new LoopApi(grpc);
   const poolApi = new PoolApi(grpc);
   const csv = new CsvExporter();
+  const history = createBrowserHistory();
 
-  const store = new Store(lndApi, loopApi, poolApi, storage, csv, actionLog);
-
-  // connect router store to browser history
-  syncHistoryWithStore(createBrowserHistory(), store.router);
+  const store = new Store(lndApi, loopApi, poolApi, storage, history, csv, actionLog);
 
   // initialize the store immediately to fetch API data, except when running unit tests
   if (!IS_TEST) store.init();

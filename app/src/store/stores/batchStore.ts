@@ -1,7 +1,6 @@
 import {
-  action,
-  computed,
   keys,
+  makeAutoObservable,
   observable,
   ObservableMap,
   runInAction,
@@ -16,25 +15,26 @@ export default class BatchStore {
   private _store: Store;
 
   /** the collection of batches */
-  @observable batches: ObservableMap<string, Batch> = observable.map();
+  batches: ObservableMap<string, Batch> = observable.map();
 
   /**
    * store the order of batches so that new batches can be inserted at the front
    * and old batches appended at the end
    */
-  @observable orderedIds: string[] = [];
+  orderedIds: string[] = [];
 
   /** the id of the active batch */
-  @observable selectedBatchId?: string;
+  selectedBatchId?: string;
 
   constructor(store: Store) {
+    makeAutoObservable(this, {}, { deep: false, autoBind: true });
+
     this._store = store;
   }
 
   /**
    * all batches sorted by newest first
    */
-  @computed
   get sortedBatches() {
     return this.orderedIds.map(id => this.batches.get(id)).filter(b => !!b) as Batch[];
   }
@@ -42,7 +42,6 @@ export default class BatchStore {
   /**
    * the oldest batch that we have queried from the API
    */
-  @computed
   get oldestBatch() {
     let batch: Batch | undefined;
     // loops over the map in insertion order to get the last batch
@@ -53,7 +52,6 @@ export default class BatchStore {
   /**
    * fetches the next set of past batches from the API
    */
-  @action.bound
   async fetchBatches() {
     this._store.log.info('fetching batches');
     let prevId = '';
@@ -76,7 +74,7 @@ export default class BatchStore {
         break;
       }
     }
-    runInAction('fetchBatchesContinuation', () => {
+    runInAction(() => {
       newBatches.forEach(batch => {
         this.batches.set(batch.batchId, batch);
         this.orderedIds.push(batch.batchId);
@@ -92,12 +90,11 @@ export default class BatchStore {
   /**
    * fetches the latest batch from the API
    */
-  @action.bound
   async fetchLatestBatch() {
     this._store.log.info('fetching latest batch');
     try {
       const poolBatch = await this._store.api.pool.batchSnapshot();
-      runInAction('fetchLatestBatch', () => {
+      runInAction(() => {
         const batch = new Batch(poolBatch);
         // add the latest one if it's not already stored in state
         if (!this.batches.get(batch.batchId)) {

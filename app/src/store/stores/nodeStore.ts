@@ -1,4 +1,4 @@
-import { action, computed, observable, runInAction, toJS } from 'mobx';
+import { makeAutoObservable, runInAction, toJS } from 'mobx';
 import { Transaction } from 'types/generated/lnd_pb';
 import Big from 'big.js';
 import copyToClipboard from 'copy-to-clipboard';
@@ -19,29 +19,31 @@ export default class NodeStore {
   private _knownTxns: string[] = [];
 
   /** the pubkey of the LND node */
-  @observable pubkey = '';
+  pubkey = '';
   /** the alias of the LND node */
-  @observable alias = '';
+  alias = '';
   /** the url of the LND node */
-  @observable url = '';
+  url = '';
   /** the chain that the LND node is connected to */
-  @observable chain: NodeChain = 'bitcoin';
+  chain: NodeChain = 'bitcoin';
   /** the network that the LND node is connected to */
-  @observable network: NodeNetwork = 'mainnet';
+  network: NodeNetwork = 'mainnet';
   /** the channel and wallet balances */
-  @observable wallet: Wallet = new Wallet();
+  wallet: Wallet = new Wallet();
 
   constructor(store: Store) {
+    makeAutoObservable(this, {}, { deep: false, autoBind: true });
+
     this._store = store;
   }
 
   /** the pubkey shortened to 12 chars with ellipses inside */
-  @computed get pubkeyLabel() {
+  get pubkeyLabel() {
     return ellipseInside(this.pubkey);
   }
 
   /** the url with the pubkey shortened to 12 chars with ellipses inside */
-  @computed get urlLabel() {
+  get urlLabel() {
     if (!this.url) return '';
 
     const [pubkey, host] = this.url.split('@');
@@ -53,7 +55,6 @@ export default class NodeStore {
   /**
    * Copies the value specified by the key to the user's clipboard
    */
-  @action.bound
   copy(key: 'pubkey' | 'alias' | 'url') {
     copyToClipboard(this[key]);
     const msg = `Copied ${key} to clipboard`;
@@ -63,12 +64,11 @@ export default class NodeStore {
   /**
    * fetch wallet balances from the LND RPC
    */
-  @action.bound
   async fetchInfo() {
     this._store.log.info('fetching node info');
     try {
       const info = await this._store.api.lnd.getInfo();
-      runInAction('getInfoContinuation', () => {
+      runInAction(() => {
         this.pubkey = info.identityPubkey;
         this.alias = info.alias;
         if (info.chainsList && info.chainsList[0]) {
@@ -88,13 +88,12 @@ export default class NodeStore {
   /**
    * fetch wallet balances from the LND RPC
    */
-  @action.bound
   async fetchBalances() {
     this._store.log.info('fetching node balances');
     try {
       const offChain = await this._store.api.lnd.channelBalance();
       const onChain = await this._store.api.lnd.walletBalance();
-      runInAction('fetchBalancesContinuation', () => {
+      runInAction(() => {
         this.wallet.channelBalance = Big(offChain.balance);
         this.wallet.walletBalance = Big(onChain.totalBalance);
         this._store.log.info('updated nodeStore.wallet', toJS(this.wallet));
@@ -110,7 +109,6 @@ export default class NodeStore {
   /**
    * updates the wallet balance from the transaction provided
    */
-  @action.bound
   onTransaction(transaction: Transaction.AsObject) {
     this._store.log.info('handle incoming transaction', transaction);
     if (this._knownTxns.includes(transaction.txHash)) return;

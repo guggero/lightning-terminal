@@ -1,6 +1,5 @@
 import {
-  action,
-  computed,
+  makeAutoObservable,
   observable,
   ObservableMap,
   runInAction,
@@ -25,16 +24,18 @@ export default class ChannelStore {
   private _store: Store;
 
   /** the collection of channels */
-  @observable channels: ObservableMap<string, Channel> = observable.map();
+  channels: ObservableMap<string, Channel> = observable.map();
 
   constructor(store: Store) {
+    makeAutoObservable(this, {}, { deep: false, autoBind: true });
+
     this._store = store;
   }
 
   /**
    * an array of channels sorted by balance percent descending
    */
-  @computed get sortedChannels() {
+  get sortedChannels() {
     const { field, descending } = this._store.settingsStore.channelSort;
     const channels = values(this.channels)
       .slice()
@@ -45,14 +46,14 @@ export default class ChannelStore {
   /**
    * an array of channels that are currently active
    */
-  @computed get activeChannels() {
+  get activeChannels() {
     return this.sortedChannels.filter(c => c.active);
   }
 
   /**
    * the sum of remote balance for all channels
    */
-  @computed get totalInbound() {
+  get totalInbound() {
     return this.sortedChannels.reduce(
       (sum, chan) => sum.plus(chan.remoteBalance),
       Big(0),
@@ -62,7 +63,7 @@ export default class ChannelStore {
   /**
    * the sum of local balance for all channels
    */
-  @computed get totalOutbound() {
+  get totalOutbound() {
     return this.sortedChannels.reduce((sum, chan) => sum.plus(chan.localBalance), Big(0));
   }
 
@@ -70,13 +71,12 @@ export default class ChannelStore {
    * queries the LND api to fetch the list of channels and stores them
    * in the state
    */
-  @action.bound
   async fetchChannels() {
     this._store.log.info('fetching channels');
 
     try {
       const { channelsList } = await this._store.api.lnd.listChannels();
-      runInAction('fetchChannelsContinuation', () => {
+      runInAction(() => {
         channelsList.forEach(lndChan => {
           // update existing channels or create new ones in state. using this
           // approach instead of overwriting the array will cause fewer state
@@ -113,7 +113,6 @@ export default class ChannelStore {
    * queries the LND api to fetch the aliases for all of the peers we have
    * channels opened with
    */
-  @action.bound
   async fetchAliases() {
     const aliases = await this._store.storage.getCached<string>({
       cacheKey: 'aliases',
@@ -132,7 +131,7 @@ export default class ChannelStore {
       },
     });
 
-    runInAction('fetchAliasesContinuation', () => {
+    runInAction(() => {
       // set the alias on each channel in the store
       values(this.channels).forEach(c => {
         const alias = aliases[c.remotePubkey];
@@ -148,7 +147,6 @@ export default class ChannelStore {
    * queries the LND api to fetch the fees for all of the peers we have
    * channels opened with
    */
-  @action.bound
   async fetchFeeRates() {
     const feeRates = await this._store.storage.getCached<number>({
       cacheKey: 'feeRates',
@@ -172,7 +170,7 @@ export default class ChannelStore {
       },
     });
 
-    runInAction('fetchFeesContinuation', () => {
+    runInAction(() => {
       // set the fee on each channel in the store
       values(this.channels).forEach(c => {
         const rate = feeRates[c.chanId];
@@ -185,7 +183,6 @@ export default class ChannelStore {
   }
 
   /** update the channel list based on events from the API */
-  @action.bound
   onChannelEvent(event: ChannelEventUpdate.AsObject) {
     this._store.log.info('handle incoming channel event', event);
     if (event.type === INACTIVE_CHANNEL && event.inactiveChannel) {
@@ -226,7 +223,6 @@ export default class ChannelStore {
   }
 
   /** exports the sorted list of channels to CSV file */
-  @action.bound
   exportChannels() {
     this._store.log.info('exporting Channels to a CSV file');
     this._store.csv.export('channels', Channel.csvColumns, toJS(this.sortedChannels));
