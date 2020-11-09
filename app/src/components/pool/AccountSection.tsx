@@ -1,56 +1,50 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { observer } from 'mobx-react-lite';
-import { usePrefixedTranslation } from 'hooks';
 import { useStore } from 'store';
-import { HeaderFour, Section } from 'components/base';
-import Tip from 'components/common/Tip';
-import Unit from 'components/common/Unit';
-import { styled } from 'components/theme';
-
-const Styled = {
-  Section: styled(Section)`
-    flex: 1;
-    min-height: 325px;
-  `,
-  Stat: styled.div`
-    font-size: ${props => props.theme.sizes.xl};
-    line-height: 37px;
-    letter-spacing: 0.43px;
-    margin: 10px 0;
-  `,
-};
+import { Section } from 'components/base';
+import {
+  AccountSummary,
+  CloseAccountConfirm,
+  CloseAccountForm,
+  ExpiredAccount,
+  FundAccountConfirm,
+  FundAccountForm,
+  FundNewAccountConfirm,
+  FundNewAccountForm,
+} from './account';
 
 const AccountSection: React.FC = () => {
-  const { l } = usePrefixedTranslation('cmps.pool.AccountSection');
-  const { accountStore, orderStore } = useStore();
+  const { accountSectionView } = useStore();
 
-  const { Section, Stat } = Styled;
-  return (
-    <Section>
-      <HeaderFour>{l('account')}</HeaderFour>
-      <Stat>
-        <Tip
-          overlay={accountStore.activeAccount.traderKey}
-          placement="right"
-          capitalize={false}
-        >
-          <span>{accountStore.activeAccount.traderKeyEllipsed}</span>
-        </Tip>
-      </Stat>
-      <HeaderFour>{l('total')}</HeaderFour>
-      <Stat>
-        <Unit sats={accountStore.activeAccount.totalBalance} />
-      </Stat>
-      <HeaderFour>{l('avail')}</HeaderFour>
-      <Stat>
-        <Unit sats={accountStore.activeAccount.availableBalance} />
-      </Stat>
-      <HeaderFour>{l('pending', { count: orderStore.pendingOrdersCount })}</HeaderFour>
-      <Stat>
-        <Unit sats={orderStore.pendingOrdersAmount} />
-      </Stat>
-    </Section>
-  );
+  let view: ReactNode;
+  switch (accountSectionView.visibleSection) {
+    case 'summary':
+      view = <AccountSummary />;
+      break;
+    case 'fund-new':
+      view = <FundNewAccountForm />;
+      break;
+    case 'fund-new-confirm':
+      view = <FundNewAccountConfirm />;
+      break;
+    case 'fund':
+      view = <FundAccountForm />;
+      break;
+    case 'fund-confirm':
+      view = <FundAccountConfirm />;
+      break;
+    case 'expired':
+      view = <ExpiredAccount />;
+      break;
+    case 'close':
+      view = <CloseAccountForm />;
+      break;
+    case 'close-confirm':
+      view = <CloseAccountConfirm />;
+      break;
+  }
+
+  return <Section>{view}</Section>;
 };
 
 export default observer(AccountSection);

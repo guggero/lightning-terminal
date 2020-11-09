@@ -8,9 +8,13 @@ import {
   values,
 } from 'mobx';
 import { AccountState } from 'types/generated/trader_pb';
+import copyToClipboard from 'copy-to-clipboard';
 import { hex } from 'util/strings';
+import { prefixTranslation } from 'util/translate';
 import { Store } from 'store';
 import { Account } from 'store/models';
+
+const { l } = prefixTranslation('stores.AccountStore');
 
 export default class AccountStore {
   private _store: Store;
@@ -49,12 +53,37 @@ export default class AccountStore {
       .sort((a, b) => {
         return +b.totalBalance.minus(a.totalBalance);
       });
-    // sort unopened accounts by the expiration height descending
+    // sort unopened accounts (excluding closed) by the expiration height descending
     const other = accts
-      .filter(a => a.state !== AccountState.OPEN)
+      .filter(a => a.state !== AccountState.OPEN && a.state !== AccountState.CLOSED)
       .sort((a, b) => b.expirationHeight - a.expirationHeight);
     // return the opened accounts before the unopened accounts
     return [...open, ...other];
+  }
+
+  /** the estimated amount of time until the active account expires */
+  get accountExpiresIn() {
+    if (!this.activeTraderKey) return '';
+    if (this.activeAccount.state === AccountState.EXPIRED) return '';
+
+    const blocksPerDay = 144;
+    const currentHeight = this._store.nodeStore.blockHeight;
+    const expiresHeight = this.activeAccount.expirationHeight;
+    const blocks = expiresHeight - currentHeight;
+    if (blocks <= 0) return '';
+
+    const days = Math.round(blocks / blocksPerDay);
+    const weeks = Math.floor(days / 7);
+    if (days <= 1) {
+      return `${blocks} ${l('common.blocks', { count: blocks })}`;
+    } else if (days < 14) {
+      return `~${days} ${l('common.days', { count: days })}`;
+    } else if (weeks < 8) {
+      return `~${weeks} ${l('common.weeks', { count: weeks })}`;
+    }
+    const months = weeks / 4.3;
+
+    return `~${months.toFixed(1)} ${l('common.months', { count: months })}`;
   }
 
   /** switch to a different account */
@@ -64,6 +93,12 @@ export default class AccountStore {
       'updated accountStore.activeTraderKey',
       toJS(this.activeTraderKey),
     );
+  }
+
+  copyTxnId() {
+    copyToClipboard(this.activeAccount.fundingTxnId);
+    const msg = `Copied funding txn ID to clipboard`;
+    this._store.uiStore.notify(msg, '', 'success');
   }
 
   /**
@@ -85,6 +120,7 @@ export default class AccountStore {
         this.setActiveTraderKey(traderKey);
         this._store.log.info('updated accountStore.accounts', toJS(this.accounts));
       });
+      return acct.traderKey;
     } catch (error) {
       this._store.uiStore.handleError(error, 'Unable to create the account');
     }
@@ -93,12 +129,16 @@ export default class AccountStore {
   /**
    * Closes an account via the pool API
    */
-  async closeAccount(feeRate?: number) {
+  async closeAccount(feeRate: number, destination?: string) {
     try {
       const acct = this.activeAccount;
       this._store.log.info(`closing account ${acct.traderKey}`);
 
-      const res = await this._store.api.pool.closeAccount(acct.traderKey, feeRate);
+      const res = await this._store.api.pool.closeAccount(
+        acct.traderKey,
+        feeRate,
+        destination,
+      );
       await this.fetchAccounts();
       return res.closeTxid;
     } catch (error) {
@@ -136,14 +176,8 @@ export default class AccountStore {
           .forEach(id => this.accounts.delete(id));
 
         // pre-select the open account with the highest balance
-        const account = values(this.accounts)
-          .slice()
-          .sort((a, b) => {
-            return +b.totalBalance.sub(a.totalBalance);
-          })
-          .find(a => a.stateLabel === 'Open');
-        if (account) {
-          this.setActiveTraderKey(account.traderKey);
+        if (this.sortedAccounts.length) {
+          this.setActiveTraderKey(this.sortedAccounts[0].traderKey);
         }
 
         this._store.log.info('updated accountStore.accounts', toJS(this.accounts));

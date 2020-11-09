@@ -7,9 +7,7 @@ import {
   values,
 } from 'mobx';
 import * as POOL from 'types/generated/trader_pb';
-import Big from 'big.js';
 import { hex } from 'util/strings';
-import { FEE_RATE_TOTAL_PARTS } from 'api/pool';
 import { Store } from 'store';
 import { Order } from 'store/models';
 import { OrderType } from 'store/models/order';
@@ -36,26 +34,6 @@ export default class OrderStore {
   /** the number of pending orders for the active account */
   get pendingOrdersCount() {
     return this.accountOrders.filter(o => o.isPending).length;
-  }
-
-  /** the amount of funds currently allocated to pending orders for the active account */
-  get pendingOrdersAmount() {
-    return this.accountOrders
-      .filter(o => o.isPending)
-      .reduce((sum, o) => {
-        if (o.type === OrderType.Ask) {
-          return sum.add(o.amount);
-        } else {
-          // to calculate the cost of a pending bid, we need to reverse calc
-          // the APY from the fixed rate per block.
-          const totalParts = Big(FEE_RATE_TOTAL_PARTS);
-          const ratePct = Big(o.rateFixed).div(totalParts).mul(o.duration);
-          // then multiply the APY by the order amount
-          const premium = ratePct.mul(o.amount);
-          // also add on the amount reserved for onchain fees
-          return sum.add(premium).add(o.reserved);
-        }
-      }, Big(0));
   }
 
   /**
@@ -177,5 +155,22 @@ export default class OrderStore {
     } catch (error) {
       this._store.uiStore.handleError(error, 'Unable to cancel the order');
     }
+  }
+
+  /**
+   * Cancels all open orders for the active account
+   */
+  async cancelAllOrders() {
+    const traderKey = this._store.accountStore.activeAccount.traderKey;
+    this._store.log.info(`cancelling all pending orders for ${traderKey}`);
+    const orders = this.accountOrders.filter(o => o.isPending);
+    for (const order of orders) {
+      this._store.log.info(`cancelling order with nonce ${order.nonce} for ${traderKey}`);
+      await this._store.api.pool.cancelOrder(order.nonce);
+    }
+    // fetch all orders to update the store's state
+    await this.fetchOrders();
+    // also update account balances in the store
+    await this._store.accountStore.fetchAccounts();
   }
 }
