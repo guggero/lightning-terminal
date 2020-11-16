@@ -1,8 +1,11 @@
 import { makeAutoObservable } from 'mobx';
 import * as AUCT from 'types/generated/auctioneer_pb';
 import * as POOL from 'types/generated/trader_pb';
+import { SortParams } from 'types/state';
 import Big from 'big.js';
+import formatDate from 'date-fns/format';
 import { hex } from 'util/strings';
+import { Store } from 'store/store';
 
 export enum OrderType {
   Bid = 'Bid',
@@ -10,6 +13,7 @@ export enum OrderType {
 }
 
 export default class Order {
+  private _store: Store;
   // native values from the POOL api
   nonce = '';
   traderKey = '';
@@ -20,13 +24,23 @@ export default class Order {
   units = 0;
   unitsUnfulfilled = 0;
   reserved = Big(0);
+  creationTimestamp = 0;
   // custom app values
   type: OrderType = OrderType.Bid;
   // for bids, this is the minimum. for asks this is the maximum
   duration = 0;
 
-  constructor() {
+  constructor(store: Store) {
     makeAutoObservable(this, {}, { deep: false, autoBind: true });
+
+    this._store = store;
+  }
+
+  /** the number of leases for this order */
+  get leaseCount() {
+    const leasesByNonce = this._store.orderStore.leasesByNonce;
+    const leases = leasesByNonce[this.nonce] || [];
+    return leases.length;
   }
 
   /**
@@ -52,7 +66,7 @@ export default class Order {
       case AUCT.OrderState.ORDER_PARTIALLY_FILLED:
         return 'Partially Filled';
       case AUCT.OrderState.ORDER_EXECUTED:
-        return 'Executed';
+        return 'Filled';
       case AUCT.OrderState.ORDER_CANCELED:
         return 'Cancelled';
       case AUCT.OrderState.ORDER_EXPIRED:
@@ -62,6 +76,23 @@ export default class Order {
     }
 
     return 'Unknown';
+  }
+
+  /** the state label with the number of associated leases */
+  get stateWithCount() {
+    return this.leaseCount === 0
+      ? this.stateLabel
+      : `${this.stateLabel} (${this.leaseCount})`;
+  }
+
+  /** The date this swap was created as a JS Date object */
+  get createdOn() {
+    return new Date(this.creationTimestamp / 1000 / 1000);
+  }
+
+  /** The date this swap was created as formatted string */
+  get createdOnLabel() {
+    return formatDate(this.createdOn, 'MMM d, h:mm a');
   }
 
   /**
@@ -78,8 +109,31 @@ export default class Order {
     this.units = poolOrder.units;
     this.unitsUnfulfilled = poolOrder.unitsUnfulfilled;
     this.reserved = Big(poolOrder.reservedValueSat);
+    this.creationTimestamp = poolOrder.creationTimestampNs;
 
     this.type = type;
     this.duration = duration;
+  }
+
+  /**
+   * Compares a specific field of two orders for sorting
+   * @param a the first order to compare
+   * @param b the second order to compare
+   * @param sortBy the field and direction to sort the two orders by
+   * @returns a positive number if `a`'s field is greater than `b`'s,
+   * a negative number if `a`'s field is less than `b`'s, or zero otherwise
+   */
+  static compare(a: Order, b: Order, field: SortParams<Order>['field']): number {
+    switch (field) {
+      case 'type':
+        return a.type.toLowerCase() > b.type.toLowerCase() ? 1 : -1;
+      case 'amount':
+        return +a.amount.sub(b.amount);
+      case 'stateLabel':
+        return a.stateLabel.toLowerCase() > b.stateLabel.toLowerCase() ? 1 : -1;
+      case 'creationTimestamp':
+      default:
+        return a.creationTimestamp - b.creationTimestamp;
+    }
   }
 }
