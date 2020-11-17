@@ -1,16 +1,21 @@
 import { makeAutoObservable, observable } from 'mobx';
 import * as AUCT from 'types/generated/auctioneer_pb';
+import Big from 'big.js';
+import { ellipseInside, hex } from 'util/strings';
+import { Store } from 'store/store';
+
+export type BatchDelta = 'neutral' | 'positive' | 'negative';
 
 class MatchedOrder {
   matchingRate = 0;
   unitsMatched = 0;
-  totalSatsCleared = 0;
+  totalSatsCleared = Big(0);
   ask = {
-    maxDurationBlocks: 0,
+    leaseDurationBlocks: 0,
     rateFixed: 0,
   };
   bid = {
-    minDurationBlocks: 0,
+    leaseDurationBlocks: 0,
     rateFixed: 0,
   };
 
@@ -19,34 +24,100 @@ class MatchedOrder {
 
     this.matchingRate = llmMatch.matchingRate;
     this.unitsMatched = llmMatch.unitsMatched;
-    this.totalSatsCleared = llmMatch.totalSatsCleared;
+    this.totalSatsCleared = Big(llmMatch.totalSatsCleared);
     this.ask = {
-      maxDurationBlocks: llmMatch.ask.leaseDurationBlocks,
+      leaseDurationBlocks: llmMatch.ask.leaseDurationBlocks,
       rateFixed: llmMatch.ask.rateFixed,
     };
     this.bid = {
-      minDurationBlocks: llmMatch.bid.leaseDurationBlocks,
+      leaseDurationBlocks: llmMatch.bid.leaseDurationBlocks,
       rateFixed: llmMatch.bid.rateFixed,
     };
   }
 }
 
 export default class Batch {
+  private _store: Store;
   // native values from the POOL api
   batchId = '';
   prevBatchId = '';
   clearingPriceRate = 0;
   batchTxId = '';
+  batchTxFeeRateSatPerKw = 0;
   matchedOrders: MatchedOrder[] = [];
 
-  constructor(llmBatch: AUCT.BatchSnapshotResponse.AsObject) {
+  constructor(store: Store, llmBatch: AUCT.BatchSnapshotResponse.AsObject) {
     makeAutoObservable(
       this,
       { matchedOrders: observable },
       { deep: false, autoBind: true },
     );
 
+    this._store = store;
     this.update(llmBatch);
+  }
+
+  /** the first and last 6 chars of the batch id */
+  get batchIdEllipsed() {
+    return ellipseInside(this.batchId, 4);
+  }
+
+  /** the first and last 6 chars of the batch tx id */
+  get batchTxIdEllipsed() {
+    return ellipseInside(this.batchTxId, 4);
+  }
+
+  /** the sum of the cleared amounts for all orders */
+  get volume() {
+    return this.matchedOrders.reduce(
+      (sum, order) => sum.add(order.totalSatsCleared),
+      Big(0),
+    );
+  }
+
+  /** the number of matched orders in this batch */
+  get ordersCount() {
+    return this.matchedOrders.length;
+  }
+
+  /** the total amount of sats earned in this batch */
+  get earnedSats() {
+    const pctRate = this._store.api.pool.calcPctRate(this.clearingPriceRate);
+    return this.volume.mul(pctRate);
+  }
+
+  /** the fee in sats/vbyte rounded to the nearest whole number */
+  get feeLabel() {
+    return `~${Math.round(this.feeInVBytes)}`;
+  }
+
+  /** a label containing the batch fee in both sats/kw and sats/vbyte */
+  get feeDescription() {
+    // round the fee to 2 decimal places
+    const fee = Math.round(this.feeInVBytes * 100) / 100;
+    return `${this.batchTxFeeRateSatPerKw} sats/kw - ${fee} sats/vbyte`;
+  }
+
+  /** the batch fee in sats/vbyte */
+  get feeInVBytes() {
+    const satsPerVByte = this._store.api.pool.satsPerKWeightToVByte(
+      this.batchTxFeeRateSatPerKw,
+    );
+    return satsPerVByte;
+  }
+
+  /** the directionality of this batch's rate compared to the previous batch */
+  get delta() {
+    let delta: BatchDelta = 'neutral';
+    const prevBatch = this._store.batchStore.batches.get(this.prevBatchId);
+    if (prevBatch) {
+      if (this.clearingPriceRate > prevBatch.clearingPriceRate) {
+        delta = 'positive';
+      } else if (this.clearingPriceRate < prevBatch.clearingPriceRate) {
+        delta = 'negative';
+      }
+    }
+    return delta;
   }
 
   /**
@@ -54,10 +125,11 @@ export default class Batch {
    * @param llmBatch the batch data
    */
   update(llmBatch: AUCT.BatchSnapshotResponse.AsObject) {
-    this.batchId = llmBatch.batchId.toString();
-    this.prevBatchId = llmBatch.prevBatchId.toString();
+    this.batchId = hex(llmBatch.batchId);
+    this.prevBatchId = hex(llmBatch.prevBatchId);
     this.clearingPriceRate = llmBatch.clearingPriceRate;
     this.batchTxId = llmBatch.batchTxId;
+    this.batchTxFeeRateSatPerKw = llmBatch.batchTxFeeRateSatPerKw;
     this.matchedOrders = llmBatch.matchedOrdersList
       // there should never be a match that does not have both a bid and an ask, but
       // the proto -> TS compiler makes these objects optional. This filter is just
