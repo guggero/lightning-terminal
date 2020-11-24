@@ -11,25 +11,11 @@ const Styled = {
   Section: styled(Section)`
     display: flex;
     flex-direction: column;
-    height: 400px;
-    overflow: auto;
+    height: 300px;
+    padding-bottom: 0;
 
-    // use consistent scrollbars across different platforms
-    &::-webkit-scrollbar {
-      width: 8px;
-      background-color: rgba(0, 0, 0, 0);
-      border-radius: 10px;
-    }
-    &::-webkit-scrollbar:hover {
-      background-color: rgba(0, 0, 0, 0.1);
-    }
-    &::-webkit-scrollbar-thumb:vertical {
-      background-color: rgba(0, 0, 0, 0.2);
-      border-radius: 10px;
-    }
-    &::-webkit-scrollbar-thumb:vertical:active {
-      background-color: rgba(0, 0, 0, 0.6);
-      border-radius: 10px;
+    @media (min-height: 1025px) {
+      height: 400px;
     }
   `,
   Header: styled(HeaderFour)`
@@ -60,8 +46,13 @@ const Styled = {
     flex: 1;
   `,
   Column: styled(Column)`
+    display: flex;
+    flex-direction: column;
+
     &:first-of-type {
+      padding-right: 0;
       border-right: 1px solid ${props => props.theme.colors.blue};
+      border-bottom: 1px solid ${props => props.theme.colors.blue};
     }
   `,
 };
@@ -106,10 +97,10 @@ const OrderListSection: React.FC = () => {
         </Actions>
       </Header>
       <Row>
-        <Column cols={5}>
+        <Column cols={12} colsXl={6}>
           <OrdersList />
         </Column>
-        <Column>
+        <Column cols={12} colsXl={6}>
           <LeaseList />
         </Column>
       </Row>

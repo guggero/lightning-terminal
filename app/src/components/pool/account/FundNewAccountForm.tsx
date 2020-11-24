@@ -4,6 +4,7 @@ import { usePrefixedTranslation } from 'hooks';
 import { Unit, Units } from 'util/constants';
 import { useStore } from 'store';
 import { Button, HeaderFour, SummaryItem } from 'components/base';
+import BlockTime from 'components/common/BlockTime';
 import FormField from 'components/common/FormField';
 import FormInputNumber from 'components/common/FormInputNumber';
 import UnitCmp from 'components/common/Unit';
@@ -13,17 +14,13 @@ const Styled = {
   Balances: styled.div`
     margin: 20px 0 30px;
   `,
-  Actions: styled.div`
-    margin: 30px auto;
-    text-align: center;
-  `,
 };
 
 const FundNewAccountForm: React.FC = () => {
   const { l } = usePrefixedTranslation('cmps.pool.account.FundNewAccountForm');
   const { fundNewAccountView } = useStore();
 
-  const { Balances, Actions } = Styled;
+  const { Balances } = Styled;
   return (
     <>
       <HeaderFour>{l('fundAccount')}</HeaderFour>
@@ -51,6 +48,7 @@ const FundNewAccountForm: React.FC = () => {
       </FormField>
       <FormField
         label={l(`expireBlocksLabel`)}
+        info={<BlockTime blocks={fundNewAccountView.expireBlocks} />}
         error={fundNewAccountView.expireBlocksError}
       >
         <FormInputNumber
@@ -70,14 +68,19 @@ const FundNewAccountForm: React.FC = () => {
           onChange={fundNewAccountView.setConfTarget}
         />
       </FormField>
-      <Actions>
+      <SummaryItem>
+        <Button ghost borderless onClick={fundNewAccountView.cancel}>
+          {l('common.cancel')}
+        </Button>
         <Button
+          primary
+          ghost
           disabled={!fundNewAccountView.isValid}
           onClick={fundNewAccountView.confirm}
         >
           {l('fund')}
         </Button>
-      </Actions>
+      </SummaryItem>
     </>
   );
 };

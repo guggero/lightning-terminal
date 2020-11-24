@@ -6,11 +6,6 @@ import { LeaseView } from './';
 
 type OrdersFilter = '' | 'open' | 'filled';
 
-const OPEN_STATES: number[] = [
-  OrderState.ORDER_SUBMITTED,
-  OrderState.ORDER_PARTIALLY_FILLED,
-];
-
 export default class OrderListView {
   private _store: Store;
 
@@ -31,12 +26,12 @@ export default class OrderListView {
 
   /** the list of orders for the active account */
   get orders() {
-    const orders = this._store.orderStore.accountOrders;
+    const orders = this._store.orderStore.sortedOrders;
     switch (this.filter) {
       case '':
         return orders;
       case 'open':
-        return orders.filter(o => OPEN_STATES.includes(o.state));
+        return orders.filter(o => o.isPending);
       case 'filled':
         return orders.filter(o => o.state === OrderState.ORDER_EXECUTED);
     }

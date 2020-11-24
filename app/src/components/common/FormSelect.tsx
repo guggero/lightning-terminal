@@ -1,21 +1,29 @@
 import React, { ReactNode } from 'react';
+import { observer } from 'mobx-react-lite';
+import Select from 'rc-select';
 import { styled } from 'components/theme';
+
+export interface SelectOption {
+  label: string;
+  value: string;
+}
 
 const Styled = {
   Wrapper: styled.div`
-    position: relative;
     font-family: ${props => props.theme.fonts.work.light};
     font-weight: 300;
     font-size: ${props => props.theme.sizes.s};
     color: ${props => props.theme.colors.offWhite};
+    position: relative;
   `,
-  Input: styled.input`
+  Select: styled(Select)`
     color: ${props => props.theme.colors.offWhite};
     background-color: ${props => props.theme.colors.overlay};
     border-width: 0;
     border-bottom: 1px solid ${props => props.theme.colors.gray};
-    padding: 5px 40px 5px 5px;
+    padding: 5px 40px 8px 0;
     width: 100%;
+    cursor: pointer;
 
     &:active,
     &:focus {
@@ -23,20 +31,28 @@ const Styled = {
       border-bottom-color: ${props => props.theme.colors.white};
     }
 
-    &::placeholder {
+    .rc-select-arrow {
+      top: 6px;
+      right: 10px;
+    }
+
+    .rc-select-selection-item {
+      padding-left: 5px;
+      font-size: ${props => props.theme.sizes.s};
+    }
+
+    input {
+      cursor: pointer;
+    }
+
+    input::placeholder {
       color: ${props => props.theme.colors.gray};
     }
-  `,
-  Extra: styled.div`
-    position: absolute;
-    top: 0;
-    right: 0;
-    background-color: transparent;
-    padding: 5px;
   `,
 };
 
 interface Props {
+  options: SelectOption[];
   label?: string;
   value?: string;
   extra?: ReactNode;
@@ -44,19 +60,26 @@ interface Props {
   onChange?: (value: string) => void;
 }
 
-const FormInput: React.FC<Props> = ({ label, value, placeholder, extra, onChange }) => {
-  const { Wrapper, Input, Extra } = Styled;
+const FormSelect: React.FC<Props> = ({
+  options,
+  label,
+  value,
+  placeholder,
+  onChange,
+}) => {
+  const { Wrapper, Select } = Styled;
   return (
     <Wrapper>
-      <Input
+      <Select
         value={value}
-        onChange={e => onChange && onChange(e.target.value)}
+        onChange={v => onChange && onChange(v as string)}
         placeholder={placeholder}
         aria-label={label}
+        options={options}
+        dropdownClassName="asdf"
       />
-      {extra && <Extra>{extra}</Extra>}
     </Wrapper>
   );
 };
 
-export default FormInput;
+export default observer(FormSelect);

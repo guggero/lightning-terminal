@@ -1,8 +1,9 @@
 import React from 'react';
 import { runInAction } from 'mobx';
-import { fireEvent } from '@testing-library/react';
+import { fireEvent, waitFor } from '@testing-library/react';
 import Big from 'big.js';
-import { renderWithProviders } from 'util/tests';
+import { hex } from 'util/strings';
+import { injectIntoGrpcUnary, renderWithProviders } from 'util/tests';
 import { createStore, Store } from 'store';
 import OrderListSection from 'components/pool/OrderListSection';
 
@@ -28,6 +29,7 @@ describe('OrderListSection', () => {
     expect(getByText('Orders')).toBeInTheDocument();
     expect(store.orderListView.filter).toBe('open');
     store.orderListView.orders.forEach(o => {
+      expect(getByText(o.rateFixed.toString())).toBeInTheDocument();
       expect(getByText(o.stateWithCount)).toBeInTheDocument();
       expect(getByText(o.createdOnLabel)).toBeInTheDocument();
     });
@@ -53,9 +55,26 @@ describe('OrderListSection', () => {
     expect(store.orderListView.filter).toBe('open');
   });
 
+  it('should cancel an open order', async () => {
+    const { getAllByText } = render();
+
+    let nonce: string;
+    injectIntoGrpcUnary((_, props) => {
+      nonce = (props.request.toObject() as any).orderNonce;
+    });
+
+    expect(getAllByText('close.svg')).toHaveLength(2);
+    fireEvent.click(getAllByText('close.svg')[0]);
+
+    await waitFor(() => {
+      expect(hex(nonce)).toBe(store.orderListView.orders[0].nonce);
+    });
+  });
+
   it.each<[string, number[]]>([
     ['Type', [2, 0, 6, 9, 3]],
-    ['Total Liquidity', [3, 9, 0, 2, 6]],
+    ['Liquidity', [3, 9, 0, 2, 6]],
+    ['Rate', [6, 0, 9, 2, 3]],
     ['Status', [6, 3, 2, 9, 0]],
     ['Created On', [2, 3, 0, 6, 9]],
   ])('should sort the orders list by %s', (sortBy, values) => {

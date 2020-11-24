@@ -2,8 +2,11 @@ import { makeAutoObservable } from 'mobx';
 import * as POOL from 'types/generated/trader_pb';
 import Big from 'big.js';
 import { ellipseInside, hex } from 'util/strings';
+import { Store } from 'store/store';
 
 export default class Account {
+  private _store: Store;
+
   // native values from the pool api
   traderKey = '';
   totalBalance = Big(0);
@@ -12,25 +15,45 @@ export default class Account {
   state = 0;
   fundingTxnId = '';
 
-  constructor(poolAccount: POOL.Account.AsObject) {
+  constructor(store: Store, poolAccount: POOL.Account.AsObject) {
     makeAutoObservable(this, {}, { deep: false, autoBind: true });
 
+    this._store = store;
     this.update(poolAccount);
-  }
-
-  /** the first and last 6 chars of the traderKey */
-  get traderKeyEllipsed() {
-    return ellipseInside(this.traderKey);
   }
 
   /** the first and last 6 chars of the funding txn id */
   get fundingTxnIdEllipsed() {
-    return ellipseInside(this.fundingTxnId);
+    return ellipseInside(this.fundingTxnId, 4);
   }
 
   /** the pending balance of the account */
   get pendingBalance() {
     return this.totalBalance.minus(this.availableBalance);
+  }
+
+  /** determines if the account is in one of the pending states */
+  get isPending() {
+    return (
+      this.state === POOL.AccountState.PENDING_OPEN ||
+      this.state === POOL.AccountState.PENDING_UPDATE ||
+      this.state === POOL.AccountState.PENDING_BATCH ||
+      this.state === POOL.AccountState.PENDING_CLOSED
+    );
+  }
+
+  /** the number of blocks until this account expires */
+  get expiresInBlocks() {
+    const currentHeight = this._store.nodeStore.blockHeight;
+    const expiresHeight = this.expirationHeight;
+    return Math.max(expiresHeight - currentHeight, 0);
+  }
+
+  /** indicates if this account is going to expire soon */
+  get expiresSoon() {
+    // warn if the account expires in under 3 days
+    const limit = 144 * 3;
+    return this.expiresInBlocks <= limit;
   }
 
   /**

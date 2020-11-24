@@ -12,7 +12,7 @@ import debounce from 'lodash/debounce';
 import { hex } from 'util/strings';
 import { Store } from 'store';
 import { Lease, Order } from 'store/models';
-import { OrderType } from 'store/models/order';
+import { OrderType, Tier } from 'store/models/order';
 
 export default class OrderStore {
   private _store: Store;
@@ -38,16 +38,9 @@ export default class OrderStore {
     return descending ? orders.reverse() : orders;
   }
 
-  /** the list of orders for the currently active account */
-  get accountOrders() {
-    return this.sortedOrders.filter(
-      o => o.traderKey === this._store.accountStore.activeTraderKey,
-    );
-  }
-
   /** the number of pending orders for the active account */
   get pendingOrdersCount() {
-    return this.accountOrders.filter(o => o.isPending).length;
+    return this.sortedOrders.filter(o => o.isPending).length;
   }
 
   /** the leases grouped by orderNonce */
@@ -91,14 +84,14 @@ export default class OrderStore {
           serverIds.push(nonce);
         });
 
-        bidsList.forEach(({ details, leaseDurationBlocks }) => {
+        bidsList.forEach(({ details, leaseDurationBlocks, minNodeTier }) => {
           const poolOrder = details as POOL.Order.AsObject;
           // update existing orders or create new ones in state. using this
           // approach instead of overwriting the array will cause fewer state
           // mutations, resulting in better react rendering performance
           const nonce = hex(poolOrder.orderNonce);
           const order = this.orders.get(nonce) || new Order(this._store);
-          order.update(poolOrder, OrderType.Bid, leaseDurationBlocks);
+          order.update(poolOrder, OrderType.Bid, leaseDurationBlocks, minNodeTier);
           this.orders.set(nonce, order);
           serverIds.push(nonce);
         });
@@ -169,6 +162,7 @@ export default class OrderStore {
    * @param duration the number of blocks to keep the channel open for
    * @param minUnitsMatch the minimum number of units required to match this order
    * @param maxBatchFeeRate the maximum batch fee rate to allowed as sats per vByte
+   * @param minNodeTier the minimum node tier (only for Bid orders)
    */
   async submitOrder(
     type: OrderType,
@@ -177,6 +171,7 @@ export default class OrderStore {
     duration: number,
     minUnitsMatch: number,
     maxBatchFeeRate: number,
+    minNodeTier?: Tier,
   ) {
     try {
       const traderKey = this._store.accountStore.activeAccount.traderKey;
@@ -185,6 +180,7 @@ export default class OrderStore {
         duration,
         minUnitsMatch,
         maxBatchFeeRate,
+        minNodeTier,
       });
 
       const { acceptedOrderNonce, invalidOrder } = await this._store.api.pool.submitOrder(
@@ -195,6 +191,7 @@ export default class OrderStore {
         duration,
         minUnitsMatch,
         maxBatchFeeRate,
+        minNodeTier,
       );
 
       // fetch all orders to update the store's state
@@ -239,7 +236,7 @@ export default class OrderStore {
   async cancelAllOrders() {
     const traderKey = this._store.accountStore.activeAccount.traderKey;
     this._store.log.info(`cancelling all pending orders for ${traderKey}`);
-    const orders = this.accountOrders.filter(o => o.isPending);
+    const orders = this.sortedOrders.filter(o => o.isPending);
     for (const order of orders) {
       this._store.log.info(`cancelling order with nonce ${order.nonce} for ${traderKey}`);
       await this._store.api.pool.cancelOrder(order.nonce);

@@ -1,11 +1,22 @@
 import { makeAutoObservable, runInAction } from 'mobx';
+import { NodeTier } from 'types/generated/auctioneer_pb';
 import { annualPercentYield, toPercent } from 'util/bigmath';
+import { BLOCKS_PER_DAY } from 'util/constants';
 import { prefixTranslation } from 'util/translate';
 import { DURATION, ONE_UNIT } from 'api/pool';
 import { Store } from 'store';
-import { OrderType } from 'store/models/order';
+import { OrderType, Tier } from 'store/models/order';
 
 const { l } = prefixTranslation('stores.orderFormView');
+
+export const NODE_TIERS: Record<Tier, string> = {
+  [NodeTier.TIER_DEFAULT]: 'Default - T1',
+  [NodeTier.TIER_0]: 'T0 - All Nodes',
+  [NodeTier.TIER_1]: 'T1 - Preferred Nodes',
+};
+
+export const DEFAULT_MIN_CHAN_SIZE = 100000;
+export const DEFAULT_MAX_BATCH_FEE = 100;
 
 export default class OrderFormView {
   private _store: Store;
@@ -14,8 +25,9 @@ export default class OrderFormView {
   orderType: OrderType = OrderType.Bid;
   amount = 0;
   premium = 0;
-  minChanSize = 0;
-  maxBatchFeeRate = 0;
+  minChanSize = DEFAULT_MIN_CHAN_SIZE;
+  maxBatchFeeRate = DEFAULT_MAX_BATCH_FEE;
+  minNodeTier: Tier = NodeTier.TIER_DEFAULT;
 
   constructor(store: Store) {
     makeAutoObservable(this, {}, { deep: false, autoBind: true });
@@ -69,6 +81,11 @@ export default class OrderFormView {
     return '';
   }
 
+  /** the available options for the minNodeTier field */
+  get nodeTierOptions() {
+    return Object.entries(NODE_TIERS).map(([value, label]) => ({ label, value }));
+  }
+
   /** the per block fixed rate */
   get perBlockFixedRate() {
     if ([this.amount, this.premium].includes(0)) return 0;
@@ -79,8 +96,7 @@ export default class OrderFormView {
   /** the APY given the amount and premium */
   get apy() {
     if ([this.amount, this.premium].includes(0)) return 0;
-    const blocksPerDay = 144;
-    const termInDays = DURATION / blocksPerDay;
+    const termInDays = DURATION / BLOCKS_PER_DAY;
     const apy = annualPercentYield(this.amount, this.premium, termInDays);
     return toPercent(apy);
   }
@@ -121,6 +137,10 @@ export default class OrderFormView {
     this.maxBatchFeeRate = feeRate;
   }
 
+  setMinNodeTier(minNodeTier: Tier) {
+    this.minNodeTier = minNodeTier;
+  }
+
   setSuggestedPremium() {
     try {
       if (!this.amount) throw new Error('Must specify amount first');
@@ -150,13 +170,15 @@ export default class OrderFormView {
       DURATION,
       minUnitsMatch,
       satsPerKWeight,
+      this.minNodeTier,
     );
     runInAction(() => {
       if (nonce) {
         this.amount = 0;
         this.premium = 0;
-        this.minChanSize = 0;
-        this.maxBatchFeeRate = 0;
+        this.minChanSize = DEFAULT_MIN_CHAN_SIZE;
+        this.maxBatchFeeRate = DEFAULT_MAX_BATCH_FEE;
+        this.minNodeTier = NodeTier.TIER_DEFAULT;
       }
     });
 

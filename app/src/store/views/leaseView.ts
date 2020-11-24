@@ -1,6 +1,7 @@
 import { makeAutoObservable } from 'mobx';
 import { SortParams } from 'types/state';
 import { annualPercentYield, toPercent } from 'util/bigmath';
+import { BLOCKS_PER_DAY } from 'util/constants';
 import { formatSats } from 'util/formatters';
 import { ellipseInside } from 'util/strings';
 import { Channel, Lease } from 'store/models';
@@ -35,7 +36,8 @@ export default class LeaseView {
   /** the APY of this lease */
   get apy() {
     const { channelAmtSat, premiumSat, channelDurationBlocks } = this.lease;
-    return annualPercentYield(+channelAmtSat, +premiumSat, channelDurationBlocks);
+    const termInDays = channelDurationBlocks / BLOCKS_PER_DAY;
+    return annualPercentYield(+channelAmtSat, +premiumSat, termInDays);
   }
 
   /** the APY of lease as a percentage */
@@ -67,9 +69,9 @@ export default class LeaseView {
     return Math.max(duration - (expireHeight - this.currHeight), 0);
   }
 
-  /** the duration of this lease as "blocks_so_far / total_duration" */
-  get duration() {
-    return `${this.blocksSoFar} / ${this.lease.channelDurationBlocks}`;
+  /** indicates if the sold channel has exceeded the duration */
+  get exceededDuration() {
+    return !this.lease.purchased && this.blocksSoFar > this.lease.channelDurationBlocks;
   }
 
   /** the lease's channel's peer alias, or ellipsed pubkey */
@@ -104,7 +106,7 @@ export default class LeaseView {
         return a.status > b.status ? 1 : -1;
       case 'alias':
         return a.alias > b.alias ? 1 : -1;
-      case 'duration':
+      case 'blocksSoFar':
       default:
         return a.blocksSoFar - b.blocksSoFar;
     }

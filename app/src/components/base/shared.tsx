@@ -6,7 +6,7 @@ import { styled } from 'components/theme';
 //
 
 export const Background = styled.div<{ gradient?: boolean }>`
-  min-height: 100vh;
+  height: 100%;
   color: ${props => props.theme.colors.white};
   background: ${props =>
     props.gradient ? props.theme.colors.gradient : props.theme.colors.blue};
@@ -63,6 +63,7 @@ export const SummaryItem = styled.div<{ strong?: boolean }>`
 
 interface ButtonProps {
   primary?: boolean;
+  danger?: boolean;
   ghost?: boolean;
   borderless?: boolean;
   disabled?: boolean;
@@ -117,6 +118,17 @@ export const Button = styled.button<ButtonProps>`
     props.borderless &&
     `
     border-width: 0;
+  `}
+
+  ${props =>
+    props.danger &&
+    `
+    border: 1px solid ${props.theme.colors.pink};
+    &:hover {
+      color: ${props.theme.colors.blue};
+      text-decoration: none;
+      background-color: ${props.theme.colors.pink};
+    }
   `}
 
   ${props =>
@@ -305,5 +317,29 @@ export const RangeInput = styled.input`
   &::-ms-fill-upper {
     background-color: ${props => props.theme.colors.pink};
     border-radius: 2px;
+  }
+`;
+
+export const Scrollable = styled.div`
+  flex: 1 1 auto;
+  height: 0px;
+  overflow: auto;
+
+  // use consistent scrollbars across different platforms
+  &::-webkit-scrollbar {
+    width: 8px;
+    background-color: rgba(0, 0, 0, 0);
+    border-radius: 10px;
+  }
+  &::-webkit-scrollbar:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  &::-webkit-scrollbar-thumb:vertical {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
+  &::-webkit-scrollbar-thumb:vertical:active {
+    background-color: rgba(255, 255, 255, 0.6);
+    border-radius: 10px;
   }
 `;

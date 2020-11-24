@@ -1,17 +1,21 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import Big from 'big.js';
+import { BLOCKS_PER_DAY } from 'util/constants';
 import { prefixTranslation } from 'util/translate';
 import { Store } from 'store';
 
 const { l } = prefixTranslation('views.fundNewAccountView');
+
+export const DEFAULT_EXPIRE_BLOCKS = 12960;
+export const DEFAULT_CONF_TARGET = 6;
 
 export default class FundNewAccountView {
   private _store: Store;
 
   // editable form fields
   amount = 0;
-  confTarget = 0;
-  expireBlocks = 0;
+  confTarget = DEFAULT_CONF_TARGET;
+  expireBlocks = DEFAULT_EXPIRE_BLOCKS;
   // response from quote
   minerFee = 0;
 
@@ -59,12 +63,11 @@ export default class FundNewAccountView {
   /** the error message if the expireBlocks is invalid */
   get expireBlocksError() {
     if (!this.expireBlocks) return '';
-    const blocksPerDay = 144;
-    if (this.expireBlocks < blocksPerDay) {
-      return l('lowExpireBlocks', { blocks: blocksPerDay });
+    if (this.expireBlocks < BLOCKS_PER_DAY) {
+      return l('lowExpireBlocks', { blocks: BLOCKS_PER_DAY });
     }
-    if (this.expireBlocks > blocksPerDay * 365) {
-      return l('highExpireBlocks', { blocks: blocksPerDay * 365 });
+    if (this.expireBlocks > BLOCKS_PER_DAY * 365) {
+      return l('highExpireBlocks', { blocks: BLOCKS_PER_DAY * 365 });
     }
     return '';
   }
@@ -113,8 +116,8 @@ export default class FundNewAccountView {
   /** shows the summary view */
   cancel() {
     this.amount = 0;
-    this.confTarget = 0;
-    this.expireBlocks = 0;
+    this.confTarget = DEFAULT_CONF_TARGET;
+    this.expireBlocks = DEFAULT_EXPIRE_BLOCKS;
     this._store.accountSectionView.showSummary();
   }
 

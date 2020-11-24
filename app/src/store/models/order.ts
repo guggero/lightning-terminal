@@ -12,6 +12,8 @@ export enum OrderType {
   Ask = 'Ask',
 }
 
+export type Tier = AUCT.NodeTierMap[keyof AUCT.NodeTierMap];
+
 export default class Order {
   private _store: Store;
   // native values from the POOL api
@@ -25,6 +27,7 @@ export default class Order {
   unitsUnfulfilled = 0;
   reserved = Big(0);
   creationTimestamp = 0;
+  minNodeTier?: Tier = 0;
   // custom app values
   type: OrderType = OrderType.Bid;
   // for bids, this is the minimum. for asks this is the maximum
@@ -99,7 +102,12 @@ export default class Order {
    * Updates this order model using data provided from the POOL GRPC api
    * @param poolOrder the order data
    */
-  update(poolOrder: POOL.Order.AsObject, type: OrderType, duration: number) {
+  update(
+    poolOrder: POOL.Order.AsObject,
+    type: OrderType,
+    duration: number,
+    minNodeTier?: Tier,
+  ) {
     this.nonce = hex(poolOrder.orderNonce);
     this.traderKey = hex(poolOrder.traderKey);
     this.amount = Big(poolOrder.amt);
@@ -113,6 +121,7 @@ export default class Order {
 
     this.type = type;
     this.duration = duration;
+    this.minNodeTier = minNodeTier;
   }
 
   /**
@@ -129,6 +138,8 @@ export default class Order {
         return a.type.toLowerCase() > b.type.toLowerCase() ? 1 : -1;
       case 'amount':
         return +a.amount.sub(b.amount);
+      case 'rateFixed':
+        return a.rateFixed - b.rateFixed;
       case 'stateLabel':
         return a.stateLabel.toLowerCase() > b.stateLabel.toLowerCase() ? 1 : -1;
       case 'creationTimestamp':

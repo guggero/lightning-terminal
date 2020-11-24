@@ -9,12 +9,10 @@ import {
 } from 'mobx';
 import { AccountState } from 'types/generated/trader_pb';
 import copyToClipboard from 'copy-to-clipboard';
+import debounce from 'lodash/debounce';
 import { hex } from 'util/strings';
-import { prefixTranslation } from 'util/translate';
 import { Store } from 'store';
 import { Account } from 'store/models';
-
-const { l } = prefixTranslation('stores.AccountStore');
 
 export default class AccountStore {
   private _store: Store;
@@ -23,6 +21,8 @@ export default class AccountStore {
   accounts: ObservableMap<string, Account> = observable.map();
   /** the currently active account */
   activeTraderKey?: string;
+  /** indicates when accounts have been initially fetched from the backend */
+  loaded = false;
 
   constructor(store: Store) {
     makeAutoObservable(this, {}, { deep: false, autoBind: true });
@@ -55,35 +55,15 @@ export default class AccountStore {
       });
     // sort unopened accounts (excluding closed) by the expiration height descending
     const other = accts
-      .filter(a => a.state !== AccountState.OPEN && a.state !== AccountState.CLOSED)
+      .filter(
+        a =>
+          a.state !== AccountState.OPEN &&
+          a.state !== AccountState.CLOSED &&
+          a.state !== AccountState.PENDING_CLOSED,
+      )
       .sort((a, b) => b.expirationHeight - a.expirationHeight);
     // return the opened accounts before the unopened accounts
     return [...open, ...other];
-  }
-
-  /** the estimated amount of time until the active account expires */
-  get accountExpiresIn() {
-    if (!this.activeTraderKey) return '';
-    if (this.activeAccount.state === AccountState.EXPIRED) return '';
-
-    const blocksPerDay = 144;
-    const currentHeight = this._store.nodeStore.blockHeight;
-    const expiresHeight = this.activeAccount.expirationHeight;
-    const blocks = expiresHeight - currentHeight;
-    if (blocks <= 0) return '';
-
-    const days = Math.round(blocks / blocksPerDay);
-    const weeks = Math.floor(days / 7);
-    if (days <= 1) {
-      return `${blocks} ${l('common.blocks', { count: blocks })}`;
-    } else if (days < 14) {
-      return `~${days} ${l('common.days', { count: days })}`;
-    } else if (weeks < 8) {
-      return `~${weeks} ${l('common.weeks', { count: weeks })}`;
-    }
-    const months = weeks / 4.3;
-
-    return `~${months.toFixed(1)} ${l('common.months', { count: months })}`;
   }
 
   /** switch to a different account */
@@ -116,7 +96,7 @@ export default class AccountStore {
       );
       runInAction(() => {
         const traderKey = hex(acct.traderKey);
-        this.accounts.set(traderKey, new Account(acct));
+        this.accounts.set(traderKey, new Account(this._store, acct));
         this.setActiveTraderKey(traderKey);
         this._store.log.info('updated accountStore.accounts', toJS(this.accounts));
       });
@@ -139,6 +119,9 @@ export default class AccountStore {
         feeRate,
         destination,
       );
+      runInAction(() => {
+        this.activeTraderKey = undefined;
+      });
       await this.fetchAccounts();
       return res.closeTxid;
     } catch (error) {
@@ -155,6 +138,9 @@ export default class AccountStore {
 
     try {
       const { accountsList } = await this._store.api.pool.listAccounts();
+      // also update the node info since accounts rely on current block height
+      // to calculate the time/blocks remaining until expiration
+      await this._store.nodeStore.fetchInfo();
       runInAction(() => {
         accountsList.forEach(poolAcct => {
           // update existing accounts or create new ones in state. using this
@@ -165,7 +151,7 @@ export default class AccountStore {
           if (existing) {
             existing.update(poolAcct);
           } else {
-            this.accounts.set(traderKey, new Account(poolAcct));
+            this.accounts.set(traderKey, new Account(this._store, poolAcct));
           }
         });
         // remove any accounts in state that are not in the API response
@@ -181,11 +167,15 @@ export default class AccountStore {
         }
 
         this._store.log.info('updated accountStore.accounts', toJS(this.accounts));
+        this.loaded = true;
       });
     } catch (error) {
       this._store.appView.handleError(error, 'Unable to fetch Accounts');
     }
   }
+
+  /** fetch accounts at most once every 2 seconds when using this func  */
+  fetchAccountsThrottled = debounce(this.fetchAccounts, 2000);
 
   /**
    * submits a deposit of the specified amount to the pool api

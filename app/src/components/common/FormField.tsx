@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { HeaderFour, HelpCircle } from 'components/base';
 import { styled } from 'components/theme';
 import Tip from './Tip';
@@ -7,9 +7,9 @@ const Styled = {
   Wrapper: styled.div``,
   Info: styled.div<{ error?: boolean }>`
     width: 100%;
-    margin: 0 0 30px;
+    margin: 0 0 15px;
     padding: 5px 0;
-    font-size: ${props => props.theme.sizes.s};
+    font-size: ${props => props.theme.sizes.xs};
     background-color: ${props => (props.error ? props.theme.colors.pink : 'transparent')};
     color: ${props =>
       props.error ? props.theme.colors.offWhite : props.theme.colors.gray};
@@ -19,8 +19,8 @@ const Styled = {
 
 interface Props {
   label: string;
-  info?: string;
-  error?: string;
+  info?: ReactNode;
+  error?: ReactNode;
   tip?: string;
 }
 
