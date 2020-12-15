@@ -13,6 +13,7 @@ const appPath = join(__dirname, '..');
  */
 const LND_VERSION_PATTERN = /^\tgithub\.com\/lightningnetwork\/lnd (v[\d.]+-beta)/ms;
 const LOOP_VERSION_PATTERN = /^\tgithub\.com\/lightninglabs\/loop (v[\d.]+-beta)/ms;
+const POOL_VERSION_PATTERN = /^\tgithub\.com\/lightninglabs\/pool (v[\d.]+-alpha)/ms;
 
 /** mapping of proto files to the github url to download each from */
 const protoSources = async () => {
@@ -24,10 +25,15 @@ const protoSources = async () => {
   if (!lndVersion || lndVersion.length !== 2) {
     throw new Error(`go.mod did not match pattern ${LND_VERSION_PATTERN}`);
   }
-  
+
   const loopVersion = goModSource.match(LOOP_VERSION_PATTERN);
   if (!loopVersion || loopVersion.length !== 2) {
     throw new Error(`go.mod did not match pattern ${LOOP_VERSION_PATTERN}`);
+  }
+
+  const poolVersion = goModSource.match(POOL_VERSION_PATTERN);
+  if (!poolVersion || poolVersion.length !== 2) {
+    throw new Error(`go.mod did not match pattern ${POOL_VERSION_PATTERN}`);
   }
 
   console.log(`Found lnd version ${lndVersion[1]} and loop version ${loopVersion[1]}.`);
@@ -35,6 +41,8 @@ const protoSources = async () => {
     // lnd: `lightningnetwork/lnd/${lndVersion[1]}/lnrpc/rpc.proto`,
     lnd: `lightningnetwork/lnd/ff897db293ab0e59abdefcb438d0ef42ebc91ff5/lnrpc/rpc.proto`,
     loop: `lightninglabs/loop/${loopVersion[1]}/looprpc/client.proto`,
+    trader: `lightninglabs/pool/${poolVersion[1]}/poolrpc/trader.proto`,
+    auctioneer: `lightninglabs/pool/${poolVersion[1]}/poolrpc/auctioneer.proto`,
   };
 };
 
