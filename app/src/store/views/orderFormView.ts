@@ -1,6 +1,6 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import { NodeTier } from 'types/generated/auctioneer_pb';
-import { annualPercentRate, toPercent } from 'util/bigmath';
+import { annualPercentRate, toBasisPoints, toPercent } from 'util/bigmath';
 import { BLOCKS_PER_DAY } from 'util/constants';
 import { prefixTranslation } from 'util/translate';
 import { DURATION, ONE_UNIT } from 'api/pool';
@@ -22,6 +22,9 @@ export default class OrderFormView {
   minChanSize = DEFAULT_MIN_CHAN_SIZE;
   maxBatchFeeRate = DEFAULT_MAX_BATCH_FEE;
   minNodeTier: Tier = NodeTier.TIER_DEFAULT;
+
+  /** toggle to show or hide the additional options */
+  addlOptionsVisible = false;
 
   constructor(store: Store) {
     makeAutoObservable(this, {}, { deep: false, autoBind: true });
@@ -87,10 +90,10 @@ export default class OrderFormView {
     return this._store.api.pool.calcFixedRate(this.amount, this.premium);
   }
 
-  /** the premium interest percent ot the amount */
-  get interestPercent() {
+  /** the premium interest of the amount in basis points */
+  get interestBps() {
     if ([this.amount, this.premium].includes(0)) return 0;
-    return toPercent(this.premium / this.amount);
+    return toBasisPoints(this.premium / this.amount);
   }
 
   /** the APR given the amount and premium */
@@ -157,6 +160,10 @@ export default class OrderFormView {
     }
   }
 
+  toggleAddlOptions() {
+    this.addlOptionsVisible = !this.addlOptionsVisible;
+  }
+
   /** submits the order to the API and resets the form values if successful */
   async placeOrder() {
     const minUnitsMatch = Math.floor(this.minChanSize / ONE_UNIT);
@@ -176,9 +183,12 @@ export default class OrderFormView {
       if (nonce) {
         this.amount = 0;
         this.premium = 0;
-        this.minChanSize = DEFAULT_MIN_CHAN_SIZE;
-        this.maxBatchFeeRate = DEFAULT_MAX_BATCH_FEE;
-        this.minNodeTier = NodeTier.TIER_DEFAULT;
+        // persist the additional options so they can be used for future orders
+        this._store.settingsStore.setOrderSettings(
+          this.minChanSize,
+          this.maxBatchFeeRate,
+          this.minNodeTier,
+        );
       }
     });
 

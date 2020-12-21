@@ -4,7 +4,6 @@ import * as POOL from 'types/generated/trader_pb';
 import { fireEvent, waitFor } from '@testing-library/react';
 import { injectIntoGrpcUnary, renderWithProviders } from 'util/tests';
 import { createStore, Store } from 'store';
-import { DEFAULT_MAX_BATCH_FEE, DEFAULT_MIN_CHAN_SIZE } from 'store/views/orderFormView';
 import OrderFormSection from 'components/pool/OrderFormSection';
 
 describe('OrderFormSection', () => {
@@ -43,6 +42,16 @@ describe('OrderFormSection', () => {
     expect(getByText('Minimum Channel Size')).toBeInTheDocument();
     expect(getByText('Max Batch Fee Rate')).toBeInTheDocument();
     expect(getByText('Place Ask Order')).toBeInTheDocument();
+  });
+
+  it('should toggle the additional options', () => {
+    const { getByText, store } = render();
+
+    expect(store.orderFormView.addlOptionsVisible).toBe(false);
+    fireEvent.click(getByText('View Additional Options'));
+    expect(store.orderFormView.addlOptionsVisible).toBe(true);
+    fireEvent.click(getByText('Hide Additional Options'));
+    expect(store.orderFormView.addlOptionsVisible).toBe(false);
   });
 
   it('should submit a bid order', async () => {
@@ -96,7 +105,7 @@ describe('OrderFormSection', () => {
     const { getByText, getByLabelText, changeInput } = render();
     changeInput('Desired Inbound Liquidity', '1000000');
     changeInput('Bid Premium', '10000');
-    changeInput('Minimum Channel Size', '100000');
+    changeInput('Minimum Channel Size', '500000');
     changeInput('Max Batch Fee Rate', '1');
 
     fireEvent.click(getByText('Place Bid Order'));
@@ -104,12 +113,8 @@ describe('OrderFormSection', () => {
     await waitFor(() => {
       expect(getByLabelText('Desired Inbound Liquidity')).toHaveValue('');
       expect(getByLabelText('Bid Premium')).toHaveValue('');
-      expect(getByLabelText('Minimum Channel Size')).toHaveValue(
-        `${DEFAULT_MIN_CHAN_SIZE}`,
-      );
-      expect(getByLabelText('Max Batch Fee Rate')).toHaveValue(
-        `${DEFAULT_MAX_BATCH_FEE}`,
-      );
+      expect(getByLabelText('Minimum Channel Size')).toHaveValue(`500,000`);
+      expect(getByLabelText('Max Batch Fee Rate')).toHaveValue(`1`);
     });
   });
 
@@ -153,17 +158,17 @@ describe('OrderFormSection', () => {
     store.batchStore.sortedBatches[0].clearingPriceRate = 496;
     changeInput('Desired Inbound Liquidity', '1000000');
     fireEvent.click(getByText('Suggested'));
-    expect(getByLabelText('Bid Premium')).toHaveValue('1000');
+    expect(getByLabelText('Bid Premium')).toHaveValue('1,000');
 
     store.batchStore.sortedBatches[0].clearingPriceRate = 1884;
     changeInput('Desired Inbound Liquidity', '1000000');
     fireEvent.click(getByText('Suggested'));
-    expect(getByLabelText('Bid Premium')).toHaveValue('3800');
+    expect(getByLabelText('Bid Premium')).toHaveValue('3,800');
 
     store.batchStore.sortedBatches[0].clearingPriceRate = 2480;
     changeInput('Desired Inbound Liquidity', '1000000');
     fireEvent.click(getByText('Suggested'));
-    expect(getByLabelText('Bid Premium')).toHaveValue('5000');
+    expect(getByLabelText('Bid Premium')).toHaveValue('5,000');
   });
 
   it('should display an error for suggested premium', async () => {
@@ -198,8 +203,8 @@ describe('OrderFormSection', () => {
 
   it('should display the channel duration', () => {
     const { getByText } = render();
-    expect(getByText('Channel Duration (blocks)')).toBeInTheDocument();
-    expect(getByText('2016')).toBeInTheDocument();
+    expect(getByText('Channel Duration')).toBeInTheDocument();
+    expect(getByText('2016 blocks')).toBeInTheDocument();
     expect(getByText('(~2 wks)')).toBeInTheDocument();
   });
 
@@ -222,29 +227,29 @@ describe('OrderFormSection', () => {
   });
 
   it('should calculate the interest rate percent correctly', () => {
-    const { getByText, getAllByText, changeInput } = render();
+    const { getByText, changeInput } = render();
 
-    expect(getByText('Interest Rate Percent')).toBeInTheDocument();
+    expect(getByText('Interest Rate')).toBeInTheDocument();
 
     changeInput('Desired Inbound Liquidity', '1000000');
     changeInput('Bid Premium', '1000');
-    expect(getByText('0.1%')).toBeInTheDocument();
+    expect(getByText('10 bps')).toBeInTheDocument();
 
     changeInput('Desired Inbound Liquidity', '1000000');
     changeInput('Bid Premium', '500');
-    expect(getByText('0.05%')).toBeInTheDocument();
+    expect(getByText('5 bps')).toBeInTheDocument();
 
     changeInput('Desired Inbound Liquidity', '1000000');
     changeInput('Bid Premium', '1234');
-    expect(getByText('0.12%')).toBeInTheDocument();
+    expect(getByText('12 bps')).toBeInTheDocument();
 
     changeInput('Desired Inbound Liquidity', '1000000');
     changeInput('Bid Premium', '');
-    expect(getAllByText('0%')).toHaveLength(2);
+    expect(getByText('0 bps')).toBeInTheDocument();
   });
 
   it('should calculate the APR correctly', () => {
-    const { getByText, getAllByText, changeInput } = render();
+    const { getByText, changeInput } = render();
 
     expect(getByText('Annual Rate (APR)')).toBeInTheDocument();
 
@@ -262,6 +267,6 @@ describe('OrderFormSection', () => {
 
     changeInput('Desired Inbound Liquidity', '1000000');
     changeInput('Bid Premium', '');
-    expect(getAllByText('0%')).toHaveLength(2);
+    expect(getByText('0%')).toBeInTheDocument();
   });
 });
