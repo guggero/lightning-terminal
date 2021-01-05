@@ -1,8 +1,18 @@
-import { makeAutoObservable, observable, ObservableMap, runInAction, toJS } from 'mobx';
+import {
+  makeAutoObservable,
+  observable,
+  ObservableMap,
+  runInAction,
+  toJS,
+  when,
+} from 'mobx';
+import { NodeTier } from 'types/generated/auctioneer_pb';
 import { IS_DEV, IS_TEST } from 'config';
 import debounce from 'lodash/debounce';
+import { hex } from 'util/strings';
 import { Store } from 'store';
 import { Batch } from 'store/models';
+import { Tier } from 'store/models/order';
 
 export const BATCH_QUERY_LIMIT = 20;
 const ZERO_BATCH_ID =
@@ -24,6 +34,9 @@ export default class BatchStore {
 
   /** the timestamp of the next batch in seconds */
   nextBatchTimestamp = 0;
+
+  /** the tier of the current LND node */
+  nodeTier?: Tier;
 
   /** indicates when batches are being fetched from the backend */
   loading = false;
@@ -108,6 +121,8 @@ export default class BatchStore {
     this._store.log.info('fetching latest batch');
     try {
       const [poolBatch] = (await this._store.api.pool.batchSnapshots(1)).batchesList;
+      // handle edge case that should only be possible on regtest with no batches
+      if (!poolBatch) return;
       // update the timestamp of the next batch when fetching the latest batch
       await this.fetchNextBatchTimestamp();
       runInAction(() => {
@@ -145,6 +160,28 @@ export default class BatchStore {
       });
     } catch (error) {
       this._store.appView.handleError(error, 'Unable to fetch the next batch timestamp');
+    }
+  }
+
+  /**
+   * fetches the next batch timestamp from the API
+   */
+  async fetchNodeTier() {
+    this._store.log.info('fetching node tier');
+    try {
+      const pubkey = this._store.nodeStore.pubkey;
+      const { nodeRatingsList } = await this._store.api.pool.nodeRatings(pubkey);
+      runInAction(() => {
+        const rating = nodeRatingsList.find(r => hex(r.nodePubkey) === pubkey);
+        if (rating) {
+          this.nodeTier = rating.nodeTier;
+        } else {
+          this.nodeTier = NodeTier.TIER_0;
+        }
+        this._store.log.info('updated batchStore.nodeTier', this.nodeTier);
+      });
+    } catch (error) {
+      this._store.appView.handleError(error, 'Unable to fetch the node tier');
     }
   }
 
@@ -190,5 +227,17 @@ export default class BatchStore {
     } else {
       this._store.log.info('polling was already stopped');
     }
+  }
+
+  /**
+   * initialize the batch store
+   */
+  init() {
+    // when the pubkey is fetched from the API and set in the nodeStore, fetch
+    // the node's tier
+    when(
+      () => !!this._store.nodeStore.pubkey && !this.nodeTier,
+      () => this.fetchNodeTier(),
+    );
   }
 }
