@@ -32,7 +32,8 @@ const protoSources = async () => {
 
   console.log(`Found lnd version ${lndVersion[1]} and loop version ${loopVersion[1]}.`);
   return {
-    lnd: `lightningnetwork/lnd/${lndVersion[1]}/lnrpc/rpc.proto`,
+    // lnd: `lightningnetwork/lnd/${lndVersion[1]}/lnrpc/rpc.proto`,
+    lnd: `lightningnetwork/lnd/ff897db293ab0e59abdefcb438d0ef42ebc91ff5/lnrpc/rpc.proto`,
     loop: `lightninglabs/loop/${loopVersion[1]}/looprpc/client.proto`,
   };
 };
