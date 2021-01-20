@@ -54,7 +54,7 @@ export default class Order {
 
   /** the order fixed rate expressed as basis points */
   get basisPoints() {
-    const pct = this._store.api.pool.calcPctRate(this.rateFixed);
+    const pct = this._store.api.pool.calcPctRate(this.rateFixed, this.duration);
     return Math.round(pct * 100 * 100);
   }
 
@@ -152,6 +152,8 @@ export default class Order {
         return +a.amount.sub(b.amount);
       case 'rateFixed':
         return a.rateFixed - b.rateFixed;
+      case 'duration':
+        return a.duration - b.duration;
       case 'stateLabel':
         return a.stateLabel.toLowerCase() > b.stateLabel.toLowerCase() ? 1 : -1;
       case 'creationTimestamp':

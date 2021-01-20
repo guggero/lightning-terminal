@@ -377,6 +377,11 @@ export const poolCloseAccount: POOL.CloseAccountResponse.AsObject = {
   closeTxid: '+BQm/hnM0SleT2NxS7bdw0JNDuvIMhL4qxLUkdbCJdo=',
 };
 
+export const poolRenewAccount: POOL.RenewAccountResponse.AsObject = {
+  renewalTxid: '+BQm/hnM0SleT2NxS7bdw0JNDuvIMhL4qxLUkdbCJdo=',
+  account: poolInitAccount,
+};
+
 export const poolListAccounts: POOL.ListAccountsResponse.AsObject = {
   accountsList: [
     poolInitAccount,
@@ -540,44 +545,96 @@ export const poolCancelOrder: POOL.CancelOrderResponse.AsObject = {};
 
 export const poolBatchSnapshot: AUCT.BatchSnapshotResponse.AsObject = {
   version: 0,
-  batchId: '0260ad81d3108e011dfb7ec3be22cacf2e6406419ae210ed4e7a4a294a87b840c8',
-  prevBatchId: '02df8606a074ccec54ff17cd62bff9351f3bcf0fabdab0ccc60b44a878b1b051b9',
+  batchId: 'A64GSAcrLtlDCUmKXLAv2bxngryfrSxrK9W8s+cl7Vb4',
+  prevBatchId: 'Ag/jvmtyBec1qrOj1FuswaZozPADVTguxmLjCa+E4wYS',
   clearingPriceRate: 19841,
-  matchedOrdersList: [
-    {
-      ask: {
-        version: 0,
-        leaseDurationBlocks: 8640,
-        rateFixed: 347,
-        chanType: 0,
+  creationTimestampNs: 1610763907325185500,
+  matchedOrdersList: [],
+  matchedMarketsMap: [
+    [
+      2016,
+      {
+        clearingPriceRate: 19841,
+        matchedOrdersList: [
+          {
+            ask: {
+              version: 0,
+              leaseDurationBlocks: 8640,
+              rateFixed: 347,
+              chanType: 0,
+            },
+            bid: {
+              version: 0,
+              leaseDurationBlocks: 1008,
+              rateFixed: 19841,
+              chanType: 0,
+            },
+            matchingRate: 19841,
+            totalSatsCleared: 7700000,
+            unitsMatched: 77,
+          },
+          {
+            ask: {
+              version: 0,
+              leaseDurationBlocks: 8640,
+              rateFixed: 347,
+              chanType: 0,
+            },
+            bid: {
+              version: 0,
+              leaseDurationBlocks: 1008,
+              rateFixed: 19841,
+              chanType: 0,
+            },
+            matchingRate: 19841,
+            totalSatsCleared: 30000000,
+            unitsMatched: 300,
+          },
+        ],
       },
-      bid: {
-        version: 0,
-        leaseDurationBlocks: 1008,
-        rateFixed: 19841,
-        chanType: 0,
+    ],
+    [
+      4032,
+      {
+        clearingPriceRate: 8640,
+        matchedOrdersList: [
+          {
+            ask: {
+              version: 0,
+              leaseDurationBlocks: 8640,
+              rateFixed: 347,
+              chanType: 0,
+            },
+            bid: {
+              version: 0,
+              leaseDurationBlocks: 1008,
+              rateFixed: 19841,
+              chanType: 0,
+            },
+            matchingRate: 19841,
+            totalSatsCleared: 7700000,
+            unitsMatched: 77,
+          },
+          {
+            ask: {
+              version: 0,
+              leaseDurationBlocks: 8640,
+              rateFixed: 347,
+              chanType: 0,
+            },
+            bid: {
+              version: 0,
+              leaseDurationBlocks: 1008,
+              rateFixed: 19841,
+              chanType: 0,
+            },
+            matchingRate: 19841,
+            totalSatsCleared: 20000000,
+            unitsMatched: 300,
+          },
+        ],
       },
-      matchingRate: 19841,
-      totalSatsCleared: 7700000,
-      unitsMatched: 77,
-    },
-    {
-      ask: {
-        version: 0,
-        leaseDurationBlocks: 8640,
-        rateFixed: 347,
-        chanType: 0,
-      },
-      bid: {
-        version: 0,
-        leaseDurationBlocks: 1008,
-        rateFixed: 19841,
-        chanType: 0,
-      },
-      matchingRate: 19841,
-      totalSatsCleared: 30000000,
-      unitsMatched: 300,
-    },
+    ],
   ],
   batchTxId: '6f29af3cb54480fec52d3a48ba94a5327aa31ed2c3b85ee8f0fd0da2f5ea8620',
   batchTx:
@@ -591,6 +648,16 @@ export const poolBatchSnapshots: AUCT.BatchSnapshotsResponse.AsObject = {
     batchId: `${i}-${poolBatchSnapshot.batchId}`,
     prevBatchId: `${i + 1}-${poolBatchSnapshot.prevBatchId}`,
   })),
+};
+
+export const poolLeaseDurations: POOL.LeaseDurationResponse.AsObject = {
+  leaseDurationsMap: [], // deprecated
+  leaseDurationBucketsMap: [
+    [2016, AUCT.DurationBucketState.MARKET_OPEN],
+    [4032, AUCT.DurationBucketState.MARKET_CLOSED],
+    [6048, AUCT.DurationBucketState.ACCEPTING_ORDERS],
+    [8064, AUCT.DurationBucketState.NO_MARKET],
+  ],
 };
 
 export const poolNextBatchInfo: POOL.NextBatchInfoResponse.AsObject = {
@@ -714,6 +781,7 @@ export const sampleApiResponses: Record<string, any> = {
   'poolrpc.Trader.QuoteAccount': poolQuoteAccount,
   'poolrpc.Trader.InitAccount': poolInitAccount,
   'poolrpc.Trader.CloseAccount': poolCloseAccount,
+  'poolrpc.Trader.RenewAccount': poolRenewAccount,
   'poolrpc.Trader.DepositAccount': poolDepositAccount,
   'poolrpc.Trader.WithdrawAccount': poolWithdrawAccount,
   'poolrpc.Trader.ListOrders': poolListOrders,
@@ -721,6 +789,7 @@ export const sampleApiResponses: Record<string, any> = {
   'poolrpc.Trader.CancelOrder': poolCancelOrder,
   'poolrpc.Trader.BatchSnapshot': poolBatchSnapshot,
   'poolrpc.Trader.BatchSnapshots': poolBatchSnapshots,
+  'poolrpc.Trader.LeaseDurations': poolLeaseDurations,
   'poolrpc.Trader.NextBatchInfo': poolNextBatchInfo,
   'poolrpc.Trader.NodeRatings': poolNodeRatings,
   'poolrpc.Trader.Leases': poolLeases,

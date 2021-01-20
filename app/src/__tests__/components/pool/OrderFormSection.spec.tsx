@@ -13,6 +13,7 @@ describe('OrderFormSection', () => {
     store = createStore();
     await store.accountStore.fetchAccounts();
     await store.orderStore.fetchOrders();
+    await store.batchStore.fetchLeaseDurations();
   });
 
   const render = () => {
@@ -101,6 +102,31 @@ describe('OrderFormSection', () => {
     expect(ask!.details.maxBatchFeeRateSatPerKw).toBe(253);
   });
 
+  it('should submit an order with a different lease duration', async () => {
+    const { getByText, changeInput, changeSelect } = render();
+
+    changeInput('Desired Inbound Liquidity', '1000000');
+    changeInput('Bid Premium', '10000');
+    changeInput('Minimum Channel Size', '100000');
+    changeInput('Max Batch Fee Rate', '1');
+    await changeSelect('Channel Duration', '4032');
+    await changeSelect('Min Node Tier', 'T0 - All Nodes');
+
+    let bid: Required<POOL.Bid.AsObject>;
+    // capture the rate that is sent to the API
+    injectIntoGrpcUnary((_, props) => {
+      bid = (props.request.toObject() as any).bid;
+    });
+
+    fireEvent.click(getByText('Place Bid Order'));
+    expect(bid!.details.amt).toBe(1000000);
+    expect(bid!.details.rateFixed).toBe(2480);
+    expect(bid!.details.minUnitsMatch).toBe(1);
+    expect(bid!.leaseDurationBlocks).toBe(4032);
+    expect(bid!.minNodeTier).toBe(1);
+    expect(bid!.details.maxBatchFeeRateSatPerKw).toBe(253);
+  });
+
   it('should reset the form after placing an order', async () => {
     const { getByText, getByLabelText, changeInput } = render();
     changeInput('Desired Inbound Liquidity', '1000000');
@@ -153,7 +179,7 @@ describe('OrderFormSection', () => {
 
   it('should suggest the correct premium', async () => {
     const { getByText, getByLabelText, changeInput } = render();
-    await store.batchStore.fetchLatestBatch();
+    await store.batchStore.fetchBatches();
 
     store.batchStore.sortedBatches[0].clearingPriceRate = 496;
     changeInput('Desired Inbound Liquidity', '1000000');
@@ -202,10 +228,10 @@ describe('OrderFormSection', () => {
   });
 
   it('should display the channel duration', () => {
-    const { getByText } = render();
-    expect(getByText('Channel Duration')).toBeInTheDocument();
+    const { getByText, getAllByText } = render();
+    expect(getAllByText('Channel Duration')).toHaveLength(2);
     expect(getByText('2016 blocks')).toBeInTheDocument();
-    expect(getByText('(~2 wks)')).toBeInTheDocument();
+    expect(getByText('(~2 weeks)')).toBeInTheDocument();
   });
 
   it('should calculate the per block rate', () => {

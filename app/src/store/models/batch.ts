@@ -1,5 +1,6 @@
 import { makeAutoObservable, observable } from 'mobx';
 import * as AUCT from 'types/generated/auctioneer_pb';
+import { LeaseDuration } from 'types/state';
 import Big from 'big.js';
 import { toPercent } from 'util/bigmath';
 import { ellipseInside, hex } from 'util/strings';
@@ -37,6 +38,9 @@ class MatchedOrder {
   }
 }
 
+/**
+ * Represents a batch with only orders for a specific lease duration
+ */
 export default class Batch {
   private _store: Store;
   // native values from the POOL api
@@ -47,7 +51,14 @@ export default class Batch {
   batchTxFeeRateSatPerKw = 0;
   matchedOrders: MatchedOrder[] = [];
 
-  constructor(store: Store, llmBatch: AUCT.BatchSnapshotResponse.AsObject) {
+  // the provided lease duration to filter orders by
+  leaseDuration: LeaseDuration;
+
+  constructor(
+    store: Store,
+    duration: LeaseDuration,
+    llmBatch: AUCT.BatchSnapshotResponse.AsObject,
+  ) {
     makeAutoObservable(
       this,
       { matchedOrders: observable },
@@ -55,6 +66,7 @@ export default class Batch {
     );
 
     this._store = store;
+    this.leaseDuration = duration;
     this.update(llmBatch);
   }
 
@@ -88,7 +100,10 @@ export default class Batch {
 
   /** the total amount of sats earned in this batch */
   get earnedSats() {
-    const pctRate = this._store.api.pool.calcPctRate(this.clearingPriceRate);
+    const pctRate = this._store.api.pool.calcPctRate(
+      this.clearingPriceRate,
+      this.leaseDuration,
+    );
     return this.volume.mul(pctRate);
   }
 
@@ -129,8 +144,14 @@ export default class Batch {
 
   /** the batch clearing rate expressed as basis points */
   get basisPoints() {
-    const pct = this._store.api.pool.calcPctRate(this.clearingPriceRate);
-    return Math.round(pct * 100 * 100);
+    const pct = this._store.api.pool.calcPctRate(
+      this.clearingPriceRate,
+      this.leaseDuration,
+    );
+    // convert the percentage to basis points. round up to prevent 0 bps
+    // which is the case for the first batch on testnet which has a
+    // clearingPriceRate of 6
+    return Math.ceil(pct * 100 * 100);
   }
 
   /** the percentage change of this batch's rate compared to the previous batch */
@@ -153,18 +174,18 @@ export default class Batch {
     this.prevBatchId = hex(llmBatch.prevBatchId);
     this.batchTxId = llmBatch.batchTxId;
     this.batchTxFeeRateSatPerKw = llmBatch.batchTxFeeRateSatPerKw;
-    // temporary fix to keep a batch level rate. Now that pool supports multiple
-    // durations, the rate per matched order will vary. The rate for orders with
-    // the same duration should be the same. In the future, we should group orders
-    // by their duration so they can be displayed in separate charts
-    if (llmBatch.matchedOrdersList.length > 0) {
-      this.clearingPriceRate = llmBatch.matchedOrdersList[0].matchingRate;
-    }
-    this.matchedOrders = llmBatch.matchedOrdersList
-      // there should never be a match that does not have both a bid and an ask, but
-      // the proto -> TS compiler makes these objects optional. This filter is just
-      // a sanity check to avoid unexpected errors
-      .filter(m => m.ask && m.bid)
-      .map(m => new MatchedOrder(m as Required<AUCT.MatchedOrderSnapshot.AsObject>));
+    // loop over all markets to limit the orders of this batch to a specific lease duration
+    llmBatch.matchedMarketsMap.forEach(([duration, market]) => {
+      // ignore markets for other lease durations
+      if (duration === this.leaseDuration) {
+        this.clearingPriceRate = market.clearingPriceRate;
+        this.matchedOrders = market.matchedOrdersList
+          // there should never be a match that does not have both a bid and an ask, but
+          // the proto -> TS compiler makes these objects optional. This filter is just
+          // a sanity check to avoid unexpected errors
+          .filter(m => m.ask && m.bid)
+          .map(m => new MatchedOrder(m as Required<AUCT.MatchedOrderSnapshot.AsObject>));
+      }
+    });
   }
 }
