@@ -174,6 +174,10 @@ github.com/grpc-ecosystem/grpc-gateway v1.14.3/go.mod h1:6CwZWGDSPRJidgKAtJVvND6
 github.com/grpc-ecosystem/grpc-gateway v1.14.6 h1:8ERzHx8aj1Sc47mu9n/AksaKCSWrMchFtkdrS4BIj5o=
 github.com/grpc-ecosystem/grpc-gateway v1.14.6/go.mod h1:zdiPV4Yse/1gnckTHtghG4GkDEdKCRJduHpTxT3/jcw=
 github.com/grpc-ecosystem/grpc-gateway v1.14.6/go.mod h1:zdiPV4Yse/1gnckTHtghG4GkDEdKCRJduHpTxT3/jcw=
+github.com/guggero/pool v0.3.2-alpha.0.20210127135335-27e6d19d54b0 h1:DAhiuQm2zsF/3Ozv96aPkvR0kku8dCf619RyqPkh/KQ=
+github.com/guggero/pool v0.3.2-alpha.0.20210127135335-27e6d19d54b0/go.mod h1:03AAPYbRyuzqOLnj/AvDzSiueX67n+R14tYWDGIEXik=
+github.com/guggero/pool/auctioneerrpc v0.0.0-20210127135335-27e6d19d54b0 h1:4HZs6mvhNZNOO282Iiy0/TnSkmjvzz+GGepCywl3KMs=
+github.com/guggero/pool/auctioneerrpc v0.0.0-20210127135335-27e6d19d54b0/go.mod h1:lOBNQUWZ2UL0uzXozooCoFAdrV5nfgGtnk0S5zkHv/o=
 github.com/hpcloud/tail v1.0.0 h1:nfCOvKYfkgYP8hkirhJocXT2+zOD8yUNjXaWfTlyFKI=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
 github.com/improbable-eng/grpc-web v0.12.0 h1:GlCS+lMZzIkfouf7CNqY+qqpowdKuJLSLLcKVfM1oLc=
@@ -241,10 +245,6 @@ github.com/lightninglabs/neutrino v0.11.1-0.20200316235139-bffc52e8f200 h1:j4iZ1
 github.com/lightninglabs/neutrino v0.11.1-0.20200316235139-bffc52e8f200/go.mod h1:MlZmoKa7CJP3eR1s5yB7Rm5aSyadpKkxqAwLQmog7N0=
 github.com/lightninglabs/neutrino v0.11.1-0.20201210023533-e1978372d15e h1:K5LCCnSAk3NVT/aCy8wNPv0I5JfyLgijg1VX8Gz306E=
 github.com/lightninglabs/neutrino v0.11.1-0.20201210023533-e1978372d15e/go.mod h1:KDWfQDKp+CFBxO1t2NRmWuagTY2sYIjpHB1k5vrojTI=
-github.com/lightninglabs/pool v0.4.2-alpha.0.20210125123142-33fcaed7a613 h1:5ggFGqN8mo4tDpzZeKRm+LtLYlVqfjKzD72IJM1LyY8=
-github.com/lightninglabs/pool v0.4.2-alpha.0.20210125123142-33fcaed7a613/go.mod h1:03AAPYbRyuzqOLnj/AvDzSiueX67n+R14tYWDGIEXik=
-github.com/lightninglabs/pool/auctioneerrpc v1.0.0 h1:w71yUygJ3K5ztvn6FXBtYSYbN70T02/GuF05wFu8J1o=
-github.com/lightninglabs/pool/auctioneerrpc v1.0.0/go.mod h1:lOBNQUWZ2UL0uzXozooCoFAdrV5nfgGtnk0S5zkHv/o=
 github.com/lightninglabs/protobuf-hex-display v1.3.3-0.20191212020323-b444784ce75d h1:QWD/5MPnaZfUVP7P8wLa4M8Td2DI7XXHXt2vhVtUgGI=
 github.com/lightninglabs/protobuf-hex-display v1.3.3-0.20191212020323-b444784ce75d/go.mod h1:KDb67YMzoh4eudnzClmvs2FbiLG9vxISmLApUkCa4uI=
 github.com/lightningnetwork/lightning-onion v1.0.2-0.20200501022730-3c8c8d0b89ea h1:oCj48NQ8u7Vz+MmzHqt0db6mxcFZo3Ho7M5gCJauY/k=

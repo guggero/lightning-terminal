@@ -28,3 +28,7 @@ require (
 )
 
 go 1.13
+
+replace github.com/lightninglabs/pool => github.com/guggero/pool v0.3.2-alpha.0.20210127135335-27e6d19d54b0
+
+replace github.com/lightninglabs/pool/auctioneerrpc => github.com/guggero/pool/auctioneerrpc v0.0.0-20210127135335-27e6d19d54b0
