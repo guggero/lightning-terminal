@@ -40,8 +40,10 @@ const protoSources = async () => {
   return {
     lnd: `lightningnetwork/lnd/${lndVersion[1]}/lnrpc/rpc.proto`,
     loop: `lightninglabs/loop/${loopVersion[1]}/looprpc/client.proto`,
-    trader: `lightninglabs/pool/${poolVersion[1]}/poolrpc/trader.proto`,
-    'auctioneerrpc/auctioneer': `lightninglabs/pool/${poolVersion[1]}/auctioneerrpc/auctioneer.proto`,
+    // trader: `lightninglabs/pool/${poolVersion[1]}/poolrpc/trader.proto`,
+    trader: `guggero/pool/27e6d19d54b0/poolrpc/trader.proto`,
+    // auctioneer: `lightninglabs/pool/${poolVersion[1]}/auctioneerrpc/auctioneer.proto`,
+    'auctioneerrpc/auctioneer': `guggero/pool/27e6d19d54b0/auctioneerrpc/auctioneer.proto`,
   };
 };
 
