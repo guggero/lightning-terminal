@@ -86,14 +86,12 @@ func (t *taprootAssetsSubServer) Start(_ lnrpc.LightningClient,
 		return err
 	}
 
-	server, err := tapcfg.CreateSubServerFromConfig(
-		t.cfg, log, &lndGrpc.LndServices, t.errChan,
+	err = tapcfg.ConfigureSubServer(
+		t.Server, t.cfg, log, &lndGrpc.LndServices, t.errChan,
 	)
 	if err != nil {
 		return err
 	}
-
-	t.Server = server
 
 	return t.StartAsSubserver(lndGrpc)
 }

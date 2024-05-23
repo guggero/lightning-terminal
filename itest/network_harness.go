@@ -23,6 +23,7 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc"
 	"github.com/lightningnetwork/lnd/lntest"
 	"github.com/lightningnetwork/lnd/lntest/node"
+	"github.com/lightningnetwork/lnd/lntest/port"
 	"github.com/lightningnetwork/lnd/lntest/wait"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -128,7 +129,7 @@ func (n *NetworkHarness) SetUp(t *testing.T,
 
 	// Start our mock Loop/Pool server first.
 	mockServerAddr := fmt.Sprintf(
-		node.ListenerFormat, node.NextAvailablePort(),
+		node.ListenerFormat, port.NextAvailablePort(),
 	)
 	n.server = NewServerHarness(mockServerAddr)
 	err := n.server.Start()
@@ -270,7 +271,8 @@ func (n *NetworkHarness) Stop() {
 
 // NewNode initializes a new HarnessNode.
 func (n *NetworkHarness) NewNode(t *testing.T, name string, extraArgs []string,
-	remoteMode bool, wait bool) (*HarnessNode, error) {
+	remoteMode bool, wait bool,
+	additionalLitArgs ...string) (*HarnessNode, error) {
 
 	litArgs := []string{
 		fmt.Sprintf("--loop.server.host=%s", n.server.ServerHost),
@@ -283,6 +285,7 @@ func (n *NetworkHarness) NewNode(t *testing.T, name string, extraArgs []string,
 			n.autopilotServer.GetPort(),
 		),
 	}
+	litArgs = append(litArgs, additionalLitArgs...)
 
 	return n.newNode(
 		t, name, extraArgs, litArgs, false, remoteMode, nil, wait,
@@ -988,7 +991,9 @@ func (n *NetworkHarness) CloseChannel(lnNode *HarnessNode,
 
 	err = wait.NoError(func() error {
 		closeReq := &lnrpc.CloseChannelRequest{
-			ChannelPoint: cp, Force: force,
+			ChannelPoint: cp,
+			Force:        force,
+			SatPerVbyte:  5,
 		}
 		closeRespStream, err = lnNode.CloseChannel(ctx, closeReq)
 		if err != nil {

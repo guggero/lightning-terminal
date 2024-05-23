@@ -39,6 +39,7 @@ import (
 	"github.com/lightningnetwork/lnd/lnrpc/wtclientrpc"
 	"github.com/lightningnetwork/lnd/lntest"
 	"github.com/lightningnetwork/lnd/lntest/node"
+	"github.com/lightningnetwork/lnd/lntest/port"
 	"github.com/lightningnetwork/lnd/lntest/wait"
 	"github.com/lightningnetwork/lnd/macaroons"
 	"google.golang.org/grpc"
@@ -102,10 +103,10 @@ func (cfg *LitNodeConfig) GenerateListeningPorts() {
 	cfg.BaseNodeConfig.GenerateListeningPorts()
 
 	if cfg.LitPort == 0 {
-		cfg.LitPort = node.NextAvailablePort()
+		cfg.LitPort = port.NextAvailablePort()
 	}
 	if cfg.LitRESTPort == 0 {
-		cfg.LitRESTPort = node.NextAvailablePort()
+		cfg.LitRESTPort = port.NextAvailablePort()
 	}
 }
 
@@ -149,7 +150,7 @@ func (l *litArgs) getArg(name string) (string, bool) {
 }
 
 // toArgList converts the litArgs map to an arguments string slice.
-func (l *litArgs) toArgList() []string {
+func (l *litArgs) toArgList(nodeName string) []string {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -163,7 +164,7 @@ func (l *litArgs) toArgList() []string {
 		args = append(args, fmt.Sprintf("--%s=%s", arg, setting))
 	}
 
-	return args
+	return append([]string{"--lnd.alias=" + nodeName}, args...)
 }
 
 // LitArgOption defines the signature of a functional option that can be used
@@ -196,7 +197,7 @@ func (cfg *LitNodeConfig) GenArgs(opts ...LitArgOption) []string {
 
 	cfg.ActiveArgs = args
 
-	return args.toArgList()
+	return args.toArgList(cfg.Name)
 }
 
 // defaultLitArgs generates the default arguments to be used with a Litd node.
@@ -214,6 +215,7 @@ func (cfg *LitNodeConfig) defaultLitdArgs() *litArgs {
 			"uipassword":             cfg.UIPassword,
 			"enablerest":             "",
 			"restcors":               "*",
+			"lndconnectinterval":     "200ms",
 		}
 	)
 	for _, arg := range cfg.LitArgs {
@@ -262,6 +264,8 @@ func (cfg *LitNodeConfig) defaultLitdArgs() *litArgs {
 			args[option] = ""
 		case 2:
 			args[option] = parts[1]
+		default:
+			args[option] = strings.Join(parts[1:], "=")
 		}
 	}
 
