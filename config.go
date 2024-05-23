@@ -31,6 +31,7 @@ import (
 	"github.com/lightningnetwork/lnd/cert"
 	"github.com/lightningnetwork/lnd/lncfg"
 	"github.com/lightningnetwork/lnd/lnrpc"
+	"github.com/lightningnetwork/lnd/lnwire"
 	"github.com/lightningnetwork/lnd/signal"
 	"github.com/mwitkow/go-conntrack/connhelpers"
 	"golang.org/x/crypto/acme/autocert"
@@ -379,6 +380,7 @@ func loadAndValidateConfig(interceptor signal.Interceptor) (*Config, error) {
 			cfg.Remote.LitDebugLevel, cfg.Lnd.LogWriter,
 		)
 	} else {
+		SetupLoggers(cfg.Lnd.LogWriter, interceptor)
 		err = build.ParseAndSetDebugLevels(
 			cfg.Lnd.DebugLevel, cfg.Lnd.LogWriter,
 		)
@@ -393,6 +395,17 @@ func loadAndValidateConfig(interceptor signal.Interceptor) (*Config, error) {
 	// can overwrite the flag here.
 	if !cfg.lndRemote && !cfg.RPCMiddleware.Disabled {
 		cfg.Lnd.RPCMiddleware.Enable = true
+	}
+
+	// For the integration of tapd with lnd, we need to allow tapd to send
+	// custom error messages to peers through the SendCustomMessage RPC in
+	// lnd. Since the error messages aren't in the custom range, we
+	// explicitly need to allow them.
+	if !cfg.lndRemote {
+		cfg.Lnd.ProtocolOptions.CustomMessage = append(
+			cfg.Lnd.ProtocolOptions.CustomMessage,
+			lnwire.MsgError,
+		)
 	}
 
 	// Validate the lightning-terminal config options.
