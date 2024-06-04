@@ -480,18 +480,37 @@ func payInvoice(ctx *cli.Context) error {
 		return fmt.Errorf("error adding sell order: %w", err)
 	}
 
-	msatPerUnit := resp.AcceptedQuote.BidPrice
+	var acceptedQuote *rfqrpc.PeerAcceptedSellQuote
+	switch r := resp.Response.(type) {
+	case *rfqrpc.AddAssetSellOrderResponse_AcceptedQuote:
+		acceptedQuote = r.AcceptedQuote
+
+	case *rfqrpc.AddAssetSellOrderResponse_InvalidQuote:
+		return fmt.Errorf("peer %v sent back an invalid quote, "+
+			"status: %v", r.InvalidQuote.Peer,
+			r.InvalidQuote.Status.String())
+
+	case *rfqrpc.AddAssetSellOrderResponse_RejectedQuote:
+		return fmt.Errorf("peer %v rejected the quote, code: %v, "+
+			"error message: %v", r.RejectedQuote.Peer,
+			r.RejectedQuote.ErrorCode, r.RejectedQuote.ErrorMessage)
+
+	default:
+		return fmt.Errorf("unexpected response type: %T", r)
+	}
+
+	msatPerUnit := acceptedQuote.BidPrice
 	numUnits := uint64(decodeResp.NumMsat) / msatPerUnit
 
 	fmt.Printf("Got quote for %v asset units at %v msat/unit from peer "+
 		"%x with SCID %d\n", numUnits, msatPerUnit, peerPubKey,
-		resp.AcceptedQuote.Scid)
+		acceptedQuote.Scid)
 
 	tchrpcClient := tchrpc.NewTaprootAssetChannelsClient(tapdConn)
 
 	encodeReq := &tchrpc.EncodeCustomRecordsRequest_RouterSendPayment{
 		RouterSendPayment: &tchrpc.RouterSendPaymentData{
-			RfqId: resp.AcceptedQuote.Id,
+			RfqId: acceptedQuote.Id,
 		},
 	}
 	encodeResp, err := tchrpcClient.EncodeCustomRecords(
@@ -645,7 +664,26 @@ func addInvoice(ctx *cli.Context) error {
 		return fmt.Errorf("error adding sell order: %w", err)
 	}
 
-	msatPerUnit := resp.AcceptedQuote.AskPrice
+	var acceptedQuote *rfqrpc.PeerAcceptedBuyQuote
+	switch r := resp.Response.(type) {
+	case *rfqrpc.AddAssetBuyOrderResponse_AcceptedQuote:
+		acceptedQuote = r.AcceptedQuote
+
+	case *rfqrpc.AddAssetBuyOrderResponse_InvalidQuote:
+		return fmt.Errorf("peer %v sent back an invalid quote, "+
+			"status: %v", r.InvalidQuote.Peer,
+			r.InvalidQuote.Status.String())
+
+	case *rfqrpc.AddAssetBuyOrderResponse_RejectedQuote:
+		return fmt.Errorf("peer %v rejected the quote, code: %v, "+
+			"error message: %v", r.RejectedQuote.Peer,
+			r.RejectedQuote.ErrorCode, r.RejectedQuote.ErrorMessage)
+
+	default:
+		return fmt.Errorf("unexpected response type: %T", r)
+	}
+
+	msatPerUnit := acceptedQuote.AskPrice
 	numMSats := lnwire.MilliSatoshi(assetAmount * msatPerUnit)
 
 	descHash, err := hex.DecodeString(ctx.String("description_hash"))
@@ -662,7 +700,7 @@ func addInvoice(ctx *cli.Context) error {
 
 	hopHint := &lnrpc.HopHint{
 		NodeId:                    balance.Channel.RemotePubkey,
-		ChanId:                    resp.AcceptedQuote.Scid,
+		ChanId:                    acceptedQuote.Scid,
 		FeeBaseMsat:               uint32(ourPolicy.FeeBaseMsat),
 		FeeProportionalMillionths: uint32(ourPolicy.FeeRateMilliMsat),
 		CltvExpiryDelta:           ourPolicy.TimeLockDelta,

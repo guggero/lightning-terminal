@@ -15,13 +15,13 @@ require (
 	github.com/lightninglabs/faraday v0.2.13-alpha
 	github.com/lightninglabs/lightning-node-connect v0.3.1-alpha
 	github.com/lightninglabs/lightning-terminal/autopilotserverrpc v0.0.1
-	github.com/lightninglabs/lndclient v1.0.1-0.20240531131838-2ef42949efc8
+	github.com/lightninglabs/lndclient v1.0.1-0.20240604150101-6b56ac87a4fa
 	github.com/lightninglabs/loop v0.28.2-beta.0.20240528133023-8a3583759df1
 	github.com/lightninglabs/loop/swapserverrpc v1.0.7
 	github.com/lightninglabs/pool v0.6.5-beta.0.20240531084722-4000ec802aaa
 	github.com/lightninglabs/pool/auctioneerrpc v1.1.2
-	github.com/lightninglabs/taproot-assets v0.3.3-0.20240603110517-96e2951edb20
-	github.com/lightningnetwork/lnd v0.18.0-beta.rc3.0.20240603093336-434eec4cdaa4
+	github.com/lightninglabs/taproot-assets v0.3.3-0.20240605143843-7dd2bee0dad9
+	github.com/lightningnetwork/lnd v0.18.0-beta.rc3.0.20240604145823-53dbd1ee66d0
 	github.com/lightningnetwork/lnd/cert v1.2.2
 	github.com/lightningnetwork/lnd/fn v1.0.8
 	github.com/lightningnetwork/lnd/kvdb v1.4.8

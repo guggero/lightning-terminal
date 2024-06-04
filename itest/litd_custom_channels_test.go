@@ -87,6 +87,11 @@ func testCustomChannels(_ context.Context, net *NetworkHarness,
 		"--taproot-assets.universerpccourier.numtries=5",
 		"--taproot-assets.universerpccourier.initialbackoff=300ms",
 		"--taproot-assets.universerpccourier.maxbackoff=600ms",
+		"--taproot-assets.experimental.rfq.priceoracleaddress=" +
+			"use_mock_price_oracle_service_promise_to_" +
+			"not_use_on_mainnet",
+		"--taproot-assets.experimental.rfq.mockoraclecentpersat=" +
+			"5820600",
 	}
 
 	// Explicitly set the proof courier as Alice (how has no other role
@@ -791,16 +796,35 @@ func payInvoiceWithAssets(t *testing.T, payer, rfqPeer *HarnessNode,
 	)
 	require.NoError(t, err)
 
-	mSatPerUnit := resp.AcceptedQuote.BidPrice
+	var acceptedQuote *rfqrpc.PeerAcceptedSellQuote
+	switch r := resp.Response.(type) {
+	case *rfqrpc.AddAssetSellOrderResponse_AcceptedQuote:
+		acceptedQuote = r.AcceptedQuote
+
+	case *rfqrpc.AddAssetSellOrderResponse_InvalidQuote:
+		t.Fatalf("peer %v sent back an invalid quote, "+
+			"status: %v", r.InvalidQuote.Peer,
+			r.InvalidQuote.Status.String())
+
+	case *rfqrpc.AddAssetSellOrderResponse_RejectedQuote:
+		t.Fatalf("peer %v rejected the quote, code: %v, "+
+			"error message: %v", r.RejectedQuote.Peer,
+			r.RejectedQuote.ErrorCode, r.RejectedQuote.ErrorMessage)
+
+	default:
+		t.Fatalf("unexpected response type: %T", r)
+	}
+
+	mSatPerUnit := acceptedQuote.BidPrice
 	numUnits := uint64(decodedInvoice.NumMsat) / mSatPerUnit
 
 	t.Logf("Got quote for %v asset units at %v msat/unit from peer "+
 		"%x with SCID %d", numUnits, mSatPerUnit, rfqPeer.PubKey[:],
-		resp.AcceptedQuote.Scid)
+		acceptedQuote.Scid)
 
 	encodeReq := &tchrpc.EncodeCustomRecordsRequest_RouterSendPayment{
 		RouterSendPayment: &tchrpc.RouterSendPaymentData{
-			RfqId: resp.AcceptedQuote.Id,
+			RfqId: acceptedQuote.Id,
 		},
 	}
 	encodeResp, err := payerTapd.EncodeCustomRecords(
@@ -859,12 +883,31 @@ func createAssetInvoice(t *testing.T, dstRfqPeer, dst *HarnessNode,
 	)
 	require.NoError(t, err)
 
-	mSatPerUnit := resp.AcceptedQuote.AskPrice
+	var acceptedQuote *rfqrpc.PeerAcceptedBuyQuote
+	switch r := resp.Response.(type) {
+	case *rfqrpc.AddAssetBuyOrderResponse_AcceptedQuote:
+		acceptedQuote = r.AcceptedQuote
+
+	case *rfqrpc.AddAssetBuyOrderResponse_InvalidQuote:
+		t.Fatalf("peer %v sent back an invalid quote, "+
+			"status: %v", r.InvalidQuote.Peer,
+			r.InvalidQuote.Status.String())
+
+	case *rfqrpc.AddAssetBuyOrderResponse_RejectedQuote:
+		t.Fatalf("peer %v rejected the quote, code: %v, "+
+			"error message: %v", r.RejectedQuote.Peer,
+			r.RejectedQuote.ErrorCode, r.RejectedQuote.ErrorMessage)
+
+	default:
+		t.Fatalf("unexpected response type: %T", r)
+	}
+
+	mSatPerUnit := acceptedQuote.AskPrice
 	numMSats := lnwire.MilliSatoshi(assetAmount * mSatPerUnit)
 
 	t.Logf("Got quote for %d sats at %v msat/unit from peer %x with SCID "+
 		"%d", numMSats.ToSatoshis(), mSatPerUnit, dstRfqPeer.PubKey[:],
-		resp.AcceptedQuote.Scid)
+		acceptedQuote.Scid)
 
 	peerChannels, err := dst.ListChannels(ctxt, &lnrpc.ListChannelsRequest{
 		Peer: dstRfqPeer.PubKey[:],
@@ -880,7 +923,7 @@ func createAssetInvoice(t *testing.T, dstRfqPeer, dst *HarnessNode,
 
 	hopHint := &lnrpc.HopHint{
 		NodeId:                    dstRfqPeer.PubKeyStr,
-		ChanId:                    resp.AcceptedQuote.Scid,
+		ChanId:                    acceptedQuote.Scid,
 		FeeBaseMsat:               uint32(ourPolicy.FeeBaseMsat),
 		FeeProportionalMillionths: uint32(ourPolicy.FeeRateMilliMsat),
 		CltvExpiryDelta:           ourPolicy.TimeLockDelta,
